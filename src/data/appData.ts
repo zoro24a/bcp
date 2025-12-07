@@ -1,0 +1,839 @@
+import { supabase } from "@/integrations/supabase/client";
+import {
+  BonafideRequest,
+  Profile,
+  Department,
+  Batch,
+  CertificateTemplate,
+  StudentDetails,
+  TutorDetails,
+  HodDetails,
+  RequestStatus,
+  AdminListUsersOptions,
+} from "@/lib/types";
+import { showError } from "@/utils/toast";
+
+// This file will now contain functions to interact with Supabase.
+
+export const fetchRequests = async (): Promise<BonafideRequest[]> => {
+  const { data, error } = await supabase.from("requests").select("*");
+  if (error) {
+    console.error("Error fetching requests:", error);
+    throw new Error("Failed to fetch requests: " + error.message);
+  }
+  return data as BonafideRequest[];
+};
+
+export const fetchProfiles = async (role?: string): Promise<Profile[]> => {
+  let query = supabase.from("profiles").select("*");
+  if (role) {
+    query = query.eq("role", role);
+  }
+  const { data, error } = await query;
+  if (error) {
+    console.error(`Error fetching ${role || ''} profiles:`, error);
+    throw new Error(`Failed to fetch ${role || ''} profiles: ` + error.message);
+  }
+  return data as Profile[];
+};
+
+export const fetchStudentDetails = async (studentId: string): Promise<StudentDetails | null> => {
+  console.log("Dyad Debug: Starting fetchStudentDetails for ID:", studentId);
+
+  // 1. Fetch the base profile data for the student
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", studentId)
+    .single();
+
+  if (profileError || !profileData) {
+    console.error("Dyad Debug: Error fetching student profile:", profileError);
+    // If no profile is found, we can't proceed. Return null as per function signature.
+    if (profileError?.code === 'PGRST116') {
+        console.error(`Dyad Debug: No profile found for student ID: ${studentId}`);
+        return null;
+    }
+    throw new Error("Failed to fetch student profile: " + profileError?.message);
+  }
+  console.log("Dyad Debug: Fetched profileData:", profileData);
+
+  // 2. Fetch the student-specific details using maybeSingle() to prevent crashes
+  const { data: studentSpecificData, error: studentSpecificError } = await supabase
+    .from("students")
+    .select(`
+      register_number,
+      parent_name,
+      batch_id,
+      tutor_id,
+      hod_id
+    `)
+    .eq("id", studentId)
+    .maybeSingle(); // Use maybeSingle to gracefully handle missing student records
+
+  if (studentSpecificError) {
+    // An actual database error occurred
+    console.error("Dyad Debug: Error fetching student-specific data:", studentSpecificError);
+    throw new Error("Failed to fetch student-specific data: " + studentSpecificError.message);
+  }
+
+  if (!studentSpecificData) {
+    // This means a profile exists but no corresponding 'students' table entry.
+    // This is a data integrity issue, but we handle it gracefully to prevent a crash.
+    console.warn(`Dyad Debug: No student-specific data found for profile ID: ${studentId}. Returning partial data.`);
+    return {
+      ...profileData,
+      register_number: 'N/A', // Provide default values for required fields
+      // Other student-specific fields will be undefined
+    } as StudentDetails;
+  }
+
+  console.log("Dyad Debug: Fetched studentSpecificData (with IDs):", studentSpecificData);
+
+  const { batch_id, tutor_id, hod_id } = studentSpecificData;
+
+  let batch: Batch | null = null;
+  let department: Department | null = null;
+  let tutor: Profile | null = null;
+  let hod: Profile | null = null;
+
+  // 3. Fetch Batch details
+  if (batch_id) {
+    const { data: batchData, error: batchError } = await supabase
+      .from("batches")
+      .select(`*, departments(id, name)`)
+      .eq("id", batch_id)
+      .single();
+    if (batchError) {
+      console.warn("Dyad Debug: Error fetching batch details:", batchError);
+    } else {
+      batch = batchData as Batch;
+      department = batchData.departments as Department;
+      console.log("Dyad Debug: Fetched batchData:", batch);
+      console.log("Dyad Debug: Fetched departmentData:", department);
+    }
+  } else {
+    console.log("Dyad Debug: No batch_id found for student.");
+  }
+
+  // 4. Fetch Tutor profile
+  if (tutor_id) {
+    const { data: tutorData, error: tutorError } = await supabase
+      .from("profiles")
+      .select(`id, first_name, last_name`)
+      .eq("id", tutor_id)
+      .single();
+    if (tutorError) {
+      console.warn("Dyad Debug: Error fetching tutor profile:", tutorError);
+    } else {
+      tutor = tutorData as Profile;
+      console.log("Dyad Debug: Fetched tutorData:", tutor);
+    }
+  } else {
+    console.log("Dyad Debug: No tutor_id found for student.");
+  }
+
+  // 5. Fetch HOD profile
+  if (hod_id) {
+    const { data: hodData, error: hodError } = await supabase
+      .from("profiles")
+      .select(`id, first_name, last_name`)
+      .eq("id", hod_id)
+      .single();
+    if (hodError) {
+      console.warn("Dyad Debug: Error fetching HOD profile:", hodError);
+    } else {
+      hod = hodData as Profile;
+      console.log("Dyad Debug: Fetched hodData:", hod);
+    }
+  } else {
+    console.log("Dyad Debug: No hod_id found for student.");
+  }
+
+  return {
+    ...profileData,
+    register_number: studentSpecificData.register_number,
+    parent_name: studentSpecificData.parent_name,
+    batch_id: batch?.id,
+    batch_name: batch ? `${batch.name} ${batch.section || ''}`.trim() : undefined,
+    current_semester: batch?.current_semester,
+    department_id: department?.id,
+    department_name: department?.name,
+    tutor_id: tutor?.id,
+    tutor_name: tutor ? `${tutor.first_name} ${tutor.last_name || ''}`.trim() : undefined,
+    hod_id: hod?.id,
+    hod_name: hod ? `${hod.first_name} ${hod.last_name || ''}`.trim() : undefined,
+  } as StudentDetails;
+};
+
+export const fetchAllStudentsWithDetails = async (): Promise<StudentDetails[]> => {
+  // Fetch all student-specific data
+  const { data: studentsData, error: studentsError } = await supabase
+    .from("students")
+    .select(`
+      id,
+      register_number,
+      parent_name,
+      batch_id,
+      tutor_id,
+      hod_id
+    `);
+
+  if (studentsError) {
+    console.error("Error fetching all students data:", studentsError);
+    throw new Error("Failed to fetch all students data: " + studentsError.message);
+  }
+
+  // Fetch all profiles (for students, tutors, HODs)
+  const { data: profilesData, error: profilesError } = await supabase
+    .from("profiles")
+    .select(`id, first_name, last_name, username, email, phone_number, avatar_url, role, department_id`);
+
+  if (profilesError) {
+    console.error("Error fetching all profiles:", profilesError);
+    throw new Error("Failed to fetch all profiles: " + profilesError.message);
+  }
+
+  // Fetch all batches with department names
+  const { data: batchesData, error: batchesError } = await supabase
+    .from("batches")
+    .select(`id, name, section, current_semester, departments(name)`);
+
+  if (batchesError) {
+    console.error("Error fetching all batches:", batchesError);
+    throw new Error("Failed to fetch all batches: " + batchesError.message);
+  }
+
+  const profilesMap = new Map(profilesData.map(p => [p.id, p]));
+  const batchesMap = new Map(batchesData.map(b => [b.id, b]));
+
+  return studentsData.map((student: any) => {
+    const studentProfile = profilesMap.get(student.id);
+    const batch = batchesMap.get(student.batch_id);
+    const tutorProfile = profilesMap.get(student.tutor_id);
+    const hodProfile = profilesMap.get(student.hod_id);
+
+    return {
+      id: student.id,
+      register_number: student.register_number,
+      parent_name: student.parent_name,
+      first_name: studentProfile?.first_name,
+      last_name: studentProfile?.last_name,
+      username: studentProfile?.username,
+      email: studentProfile?.email,
+      phone_number: studentProfile?.phone_number,
+      avatar_url: studentProfile?.avatar_url,
+      role: studentProfile?.role,
+      batch_id: batch?.id,
+      batch_name: batch ? `${batch.name} ${batch.section || ''}`.trim() : undefined,
+      current_semester: batch?.current_semester,
+      department_id: batch?.departments?.id, // Assuming department_id is needed
+      department_name: batch?.departments?.name,
+      tutor_id: tutorProfile?.id,
+      tutor_name: tutorProfile ? `${tutorProfile.first_name} ${tutorProfile.last_name || ''}`.trim() : undefined,
+      hod_id: hodProfile?.id,
+      hod_name: hodProfile ? `${hodProfile.first_name} ${hodProfile.last_name || ''}`.trim() : undefined,
+    } as StudentDetails;
+  });
+};
+
+
+export const fetchTutorDetails = async (tutorId: string): Promise<TutorDetails | null> => {
+  // 1. Fetch the base profile data for the tutor
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .select(`
+      *,
+      departments(name)
+    `)
+    .eq("id", tutorId)
+    .single();
+
+  if (profileError || !profileData) {
+    console.error("Error fetching tutor profile:", profileError);
+    throw new Error("Failed to fetch tutor profile: " + profileError?.message);
+  }
+
+  const department = profileData.departments as unknown as Department;
+
+  // 2. Separately fetch the batch(es) assigned to this tutor
+  const { data: assignedBatches, error: batchesError } = await supabase
+    .from("batches")
+    .select(`name, section`)
+    .eq("tutor_id", tutorId);
+
+  if (batchesError) {
+    console.warn("Error fetching assigned batches for tutor:", batchesError);
+  }
+
+  // Combine batch names into a single string if multiple, or just the first one
+  const batchAssignedName = assignedBatches && assignedBatches.length > 0
+    ? assignedBatches.map(b => `${b.name} ${b.section || ''}`.trim()).join(', ')
+    : undefined;
+
+  return {
+    ...profileData,
+    department_name: department?.name,
+    batch_assigned_name: batchAssignedName,
+  } as TutorDetails;
+};
+
+export const fetchHodDetails = async (hodId: string): Promise<HodDetails | null> => {
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .select(`
+      *,
+      departments(name)
+    `)
+    .eq("id", hodId)
+    .single();
+
+  if (profileError || !profileData) {
+    console.error("Error fetching HOD profile:", profileError);
+    throw new Error("Failed to fetch HOD profile: " + profileError?.message);
+  }
+
+  const department = profileData.departments as unknown as Department;
+
+  return {
+    ...profileData,
+    department_name: department?.name,
+  } as HodDetails;
+};
+
+
+export const fetchDepartments = async (): Promise<Department[]> => {
+  const { data, error } = await supabase.from("departments").select("*");
+  if (error) {
+    console.error("Error fetching departments:", error);
+    throw new Error("Failed to fetch departments: " + error.message);
+  }
+  return data as Department[];
+};
+
+export const fetchBatches = async (): Promise<Batch[]> => {
+  const { data, error } = await supabase.from("batches").select(`
+    *,
+    departments(name),
+    tutors:profiles!batches_tutor_id_fkey(first_name, last_name)
+  `);
+  if (error) {
+    console.error("Error fetching batches:", error);
+    throw new Error("Failed to fetch batches: " + error.message);
+  }
+  return data as Batch[];
+};
+
+export const fetchTemplates = async (): Promise<CertificateTemplate[]> => {
+  const { data, error } = await supabase.from("templates").select("*");
+  if (error) {
+    console.error("Error fetching templates:", error);
+    throw new Error("Failed to fetch templates: " + error.message);
+  }
+  return data as CertificateTemplate[];
+};
+
+// Example functions for data manipulation
+export const createRequest = async (newRequest: Omit<BonafideRequest, 'id' | 'created_at'>): Promise<BonafideRequest | null> => {
+  const { data, error } = await supabase.from("requests").insert(newRequest).select().single();
+  if (error) {
+    console.error("Error creating request:", error);
+    return null;
+  }
+  return data as BonafideRequest;
+};
+
+export const updateRequestStatus = async (requestId: string, status: RequestStatus, returnReason?: string, templateId?: string): Promise<BonafideRequest | null> => {
+  const updateData: Partial<BonafideRequest> = { status };
+  if (returnReason) {
+    updateData.return_reason = returnReason;
+  }
+  if (templateId) {
+    updateData.template_id = templateId;
+  }
+  const { data, error } = await supabase.from("requests").update(updateData).eq("id", requestId).select().single();
+  if (error) {
+    console.error("Error updating request status:", error);
+    return null;
+  }
+  return data as BonafideRequest;
+};
+
+export const updateProfile = async (userId: string, updates: Partial<Profile>): Promise<Profile | null> => {
+  const { data, error } = await supabase.from("profiles").update(updates).eq("id", userId).select().single();
+  if (error) {
+    console.error("Error updating profile:", error);
+    return null;
+  }
+  return data as Profile;
+};
+
+export const createDepartment = async (newDepartment: Omit<Department, 'id' | 'created_at'>): Promise<Department | null> => {
+  const { data, error } = await supabase.from("departments").insert(newDepartment).select().single();
+  if (error) {
+    console.error("Error creating department:", error);
+    return null;
+  }
+  return data as Department;
+};
+
+export const createBatch = async (newBatch: Omit<Batch, 'id' | 'created_at'>): Promise<Batch | null> => {
+  const { data, error } = await supabase.from("batches").insert(newBatch).select().single();
+  if (error) {
+    console.error("Error creating batch:", error);
+    return null;
+  }
+  return data as Batch;
+};
+
+export const updateBatch = async (batchId: string, updates: Partial<Batch>): Promise<Batch | null> => {
+  const { data, error } = await supabase.from("batches").update(updates).eq("id", batchId).select().single();
+  if (error) {
+    console.error("Error updating batch:", error);
+    return null;
+  }
+  return data as Batch;
+};
+
+export const createTemplate = async (
+  newTemplate: Omit<CertificateTemplate, 'id' | 'created_at' | 'file_url'>,
+  file?: File
+): Promise<CertificateTemplate | null> => {
+  let file_url: string | undefined;
+
+  if (file) {
+    const filePath = `public/${Date.now()}-${file.name}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('certificate-templates')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Error uploading file:", uploadError);
+      showError("Error uploading file: " + uploadError.message);
+      return null;
+    }
+    file_url = supabase.storage.from('certificate-templates').getPublicUrl(filePath).data.publicUrl;
+  }
+
+  const { data, error } = await supabase.from("templates").insert({
+    ...newTemplate,
+    file_url: file_url,
+  }).select().single();
+
+  if (error) {
+    console.error("Error creating template in DB:", error);
+    showError("Failed to create template in database: " + error.message);
+    return null;
+  }
+  return data as CertificateTemplate;
+};
+
+export const updateTemplate = async (
+  templateId: string,
+  updates: Partial<Omit<CertificateTemplate, 'created_at' | 'file_url'>>,
+  file?: File
+): Promise<CertificateTemplate | null> => {
+  let file_url: string | null | undefined;
+
+  // If a new file is provided, upload it
+  if (file) {
+    // First, get the existing template to check for an old file to delete
+    const { data: existingTemplate, error: fetchError } = await supabase
+      .from('templates')
+      .select('file_url')
+      .eq('id', templateId)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching existing template for file update:", fetchError);
+      showError("Failed to update template file: " + fetchError.message);
+      return null;
+    }
+
+    // If an old file exists, delete it
+    if (existingTemplate?.file_url) {
+      const oldFilePath = existingTemplate.file_url.split('/public/')[1]; // Extract path after /public/
+      if (oldFilePath) {
+        const { error: deleteFileError } = await supabase.storage
+          .from('certificate-templates')
+          .remove([oldFilePath]);
+        if (deleteFileError) {
+          console.warn("Error deleting old file:", deleteFileError.message);
+          // Don't block the update if old file deletion fails
+        }
+      }
+    }
+
+    const filePath = `public/${Date.now()}-${file.name}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('certificate-templates')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+      });
+
+    if (uploadData) {
+      file_url = supabase.storage.from('certificate-templates').getPublicUrl(filePath).data.publicUrl;
+    } else if (uploadError) {
+      showError("Error uploading new file: " + uploadError.message);
+      console.error("Error uploading new file:", uploadError);
+      return null;
+    }
+  } else if (updates.template_type === 'html') {
+    // If switching to HTML and no new file is provided, explicitly clear file_url
+    file_url = null;
+  }
+  // If template_type is 'pdf' or 'word' and no new file is provided,
+  // file_url remains undefined, meaning it won't be updated in the DB,
+  // thus retaining the existing file_url. This is the desired behavior.
+
+  const updatePayload: Partial<CertificateTemplate> = { ...updates };
+  if (file_url !== undefined) { // Only include file_url in payload if it was explicitly set (to a new URL or null)
+    updatePayload.file_url = file_url;
+  }
+
+  const { data, error } = await supabase.from("templates").update(updatePayload).eq("id", templateId).select().single();
+  if (error) {
+    console.error("Error updating template in DB:", error);
+    showError("Failed to update template in database: " + error.message);
+    return null;
+  }
+  return data as CertificateTemplate;
+};
+
+export const deleteTemplate = async (templateId: string): Promise<boolean> => {
+  // First, fetch the template to get the file_url if it exists
+  const { data: template, error: fetchError } = await supabase
+    .from('templates')
+    .select('file_url')
+    .eq('id', templateId)
+    .single();
+
+  if (fetchError) {
+    console.error("Error fetching template for deletion:", fetchError);
+    showError("Failed to delete template: " + fetchError.message);
+    return false;
+  }
+
+  // If a file is associated, delete it from storage
+  if (template?.file_url) {
+    const filePath = template.file_url.split('/public/')[1]; // Extract path after /public/
+    if (filePath) {
+      const { error: deleteFileError } = await supabase.storage
+        .from('certificate-templates')
+        .remove([filePath]);
+      if (deleteFileError) {
+        console.warn("Error deleting associated file from storage:", deleteFileError.message);
+        // Continue with database deletion even if file deletion fails
+      }
+    }
+  }
+
+  const { error } = await supabase.from("templates").delete().eq("id", templateId);
+  if (error) {
+    console.error("Error deleting template from DB:", error);
+    showError("Failed to delete template from database: " + error.message);
+    return false;
+  }
+  return true;
+};
+
+// Define a specific type for the studentData parameter in createStudent
+interface NewStudentDetailsPayload {
+  register_number: string;
+  parent_name?: string;
+  batch_id?: string;
+  tutor_id?: string;
+  hod_id?: string;
+}
+
+// Define the return type for createStudent to handle success or specific errors
+type CreateStudentResult = StudentDetails | { error: string };
+
+export const createStudent = async (
+  profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>,
+  studentData: NewStudentDetailsPayload,
+  password?: string // Make password optional
+): Promise<CreateStudentResult | null> => {
+  const { email, username, ...otherProfileData } = profileData;
+  
+  // Generate a random password if not provided (e.g., for bulk upload)
+  const finalPassword = password || Math.random().toString(36).slice(-8); // Simple random password
+
+  // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
+  const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
+    body: JSON.stringify({
+      action: 'signUp',
+      payload: {
+        credentials: {
+          email: email!,
+          password: finalPassword,
+          options: {
+            data: {
+              ...otherProfileData,
+              username: username || `${otherProfileData.first_name}.${studentData.register_number}`,
+              role: 'student',
+            },
+          },
+        },
+      },
+    }),
+  });
+
+  if (authError) {
+    console.error("Error signing up student user via Edge Function:", authError);
+    // Check for specific error messages related to duplicate email
+    if (authError.message.includes('User already exists') || authError.message.includes('duplicate key value')) {
+      return { error: `A user with email "${email}" already exists.` };
+    }
+    return { error: "Failed to create student user: " + authError.message };
+  }
+
+  const newUser = (authData as any)?.user; // Cast to any to access user property
+  if (newUser) {
+    // The trigger `handle_new_user` should have created the profile.
+    // We need to fetch it to get the complete Profile object and ensure it exists.
+    const { data: newProfile, error: profileFetchError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", newUser.id)
+      .single();
+
+    if (profileFetchError || !newProfile) {
+      console.error("Error fetching newly created student profile:", profileFetchError);
+      // Rollback: delete the auth user if profile creation failed
+      await supabase.functions.invoke('manage-users', {
+        body: JSON.stringify({
+          action: 'deleteUser',
+          payload: { userId: newUser.id },
+        }),
+      });
+      return { error: "Failed to retrieve new student profile after creation." };
+    }
+
+    // 2. Insert student-specific details into the 'students' table
+    const { data: newStudentSpecificData, error: studentError } = await supabase
+      .from("students")
+      .insert({
+        id: newProfile.id, // Link to the newly created profile/auth user ID
+        register_number: studentData.register_number,
+        parent_name: studentData.parent_name,
+        batch_id: studentData.batch_id,
+        tutor_id: studentData.tutor_id,
+        hod_id: studentData.hod_id,
+      })
+      .select()
+      .single();
+
+    if (studentError || !newStudentSpecificData) {
+      console.error("Error creating student entry:", studentError);
+      
+      // Check for duplicate register number error (code '23505' for unique constraint violation)
+      if (studentError?.code === '23505' && studentError.message.includes('students_register_number_key')) {
+        const errorMessage = `Register number "${studentData.register_number}" already exists.`;
+        
+        // Roll back: delete the profile and auth user if student-specific data creation fails
+        await supabase.from("profiles").delete().eq("id", newProfile.id);
+        await supabase.functions.invoke('manage-users', {
+          body: JSON.stringify({
+            action: 'deleteUser',
+            payload: { userId: newProfile.id },
+          }),
+        });
+        return { error: errorMessage };
+      }
+      
+      // Roll back for other errors
+      await supabase.from("profiles").delete().eq("id", newProfile.id);
+      await supabase.functions.invoke('manage-users', {
+        body: JSON.stringify({
+          action: 'deleteUser',
+          payload: { userId: newProfile.id },
+        }),
+      });
+      return { error: "Failed to create student entry: " + studentError?.message };
+    }
+
+    return { ...newProfile, ...newStudentSpecificData } as StudentDetails;
+  }
+  return null;
+};
+
+export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>, password: string): Promise<Profile | null> => {
+  const { email, ...metaData } = profileData;
+
+  // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
+  const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
+    body: JSON.stringify({
+      action: 'signUp',
+      payload: {
+        credentials: {
+          email: email!,
+          password: password,
+          options: {
+            data: metaData,
+          },
+        },
+      },
+    }),
+  });
+
+  if (authError) {
+    console.error("Error signing up tutor user via Edge Function:", authError);
+    showError("Failed to create tutor user: " + authError.message);
+    return null;
+  }
+
+  const newUser = (authData as any)?.user;
+  if (newUser) {
+    // The trigger `handle_new_user` should have created the profile.
+    // We need to fetch it to return the complete Profile object.
+    const { data: newProfile, error: profileFetchError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", newUser.id)
+      .single();
+
+    if (profileFetchError || !newProfile) {
+      console.error("Error fetching newly created tutor profile:", profileFetchError);
+      showError("Failed to retrieve new tutor profile: " + profileFetchError?.message);
+      // Optionally, attempt to delete the auth user if profile creation failed
+      await supabase.functions.invoke('manage-users', {
+        body: JSON.stringify({
+          action: 'deleteUser',
+          payload: { userId: newUser.id },
+        }),
+      });
+      return null;
+    }
+    return newProfile as Profile;
+  }
+  return null;
+};
+
+export const updateTutor = async (tutorId: string, updates: Partial<Profile>): Promise<Profile | null> => {
+  // Note: This function only updates the 'profiles' table.
+  // Password updates are handled by updateUserPassword.
+  const { data, error } = await supabase.from("profiles").update(updates).eq("id", tutorId).select().single();
+  if (error) {
+    console.error("Error updating tutor profile:", error);
+    return null;
+  }
+  return data as Profile;
+};
+
+export const updateUserPassword = async (userId: string, newPassword: string): Promise<boolean> => {
+  const { data, error } = await supabase.functions.invoke('manage-users', {
+    body: JSON.stringify({
+      action: 'updateUserById',
+      payload: {
+        userId: userId,
+        updates: { password: newPassword },
+      },
+    }),
+  });
+
+  if (error) {
+    console.error("Error updating user password via Edge Function:", error);
+    showError("Failed to update user password: " + error.message);
+    return false;
+  }
+  console.log("User password updated successfully for user:", (data as any)?.user?.id);
+  return true;
+};
+
+export const deleteTutor = async (tutorId: string): Promise<boolean> => {
+  // When deleting a tutor, we should also delete their auth.users entry via Edge Function.
+  const { error } = await supabase.functions.invoke('manage-users', {
+    body: JSON.stringify({
+      action: 'deleteUser',
+      payload: { userId: tutorId },
+    }),
+  });
+
+  if (error) {
+    console.error("Error deleting tutor user via Edge Function:", error);
+    return false;
+  }
+  return true;
+};
+
+export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>, password: string): Promise<Profile | null> => {
+  const { email, ...metaData } = profileData;
+
+  // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
+  const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
+    body: JSON.stringify({
+      action: 'signUp',
+      payload: {
+        credentials: {
+          email: email!,
+          password: password,
+          options: {
+            data: metaData,
+          },
+        },
+      },
+    }),
+  });
+
+  if (authError) {
+    console.error("Error signing up HOD user via Edge Function:", authError);
+    showError("Failed to create HOD user: " + authError.message);
+    return null;
+  }
+
+  const newUser = (authData as any)?.user;
+  if (newUser) {
+    // The trigger `handle_new_user` should have created the profile.
+    // We need to fetch it to return the complete Profile object.
+    const { data: newProfile, error: profileFetchError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", newUser.id)
+      .single();
+
+    if (profileFetchError || !newProfile) {
+      console.error("Error fetching newly created HOD profile:", profileFetchError);
+      showError("Failed to retrieve new HOD profile: " + profileFetchError?.message);
+      // Optionally, attempt to delete the auth user if profile creation failed
+      await supabase.functions.invoke('manage-users', {
+        body: JSON.stringify({
+          action: 'deleteUser',
+          payload: { userId: newUser.id },
+        }),
+      });
+      return null;
+    }
+    return newProfile as Profile;
+  }
+  return null;
+};
+
+export const updateHod = async (hodId: string, updates: Partial<Profile>): Promise<Profile | null> => {
+  const { data, error } = await supabase.from("profiles").update(updates).eq("id", hodId).select().single();
+  if (error) {
+    console.error("Error updating HOD:", error);
+    return null;
+  }
+  return data as Profile;
+};
+
+export const deleteHod = async (hodId: string): Promise<boolean> => {
+  // When deleting a HOD, we should also delete their auth.users entry via Edge Function.
+  const { error } = await supabase.functions.invoke('manage-users', {
+    body: JSON.stringify({
+      action: 'deleteUser',
+      payload: { userId: hodId },
+    }),
+  });
+
+  if (error) {
+    console.error("Error deleting HOD user via Edge Function:", error);
+    return false;
+  }
+  return true;
+};

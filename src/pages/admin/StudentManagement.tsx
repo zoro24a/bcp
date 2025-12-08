@@ -42,7 +42,7 @@ import {
   fetchProfiles,
   createBatch,
 } from "@/data/appData";
-import { Download, MoreHorizontal, UserPlus, Eye, EyeOff } from "lucide-react";
+import { Download, MoreHorizontal, Upload, UserPlus, Eye, EyeOff } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +53,7 @@ import { downloadStudentTemplate, parseStudentFile } from "@/lib/xlsx";
 import { showSuccess, showError } from "@/utils/toast";
 import { StudentDetails, Department, Batch, Profile } from "@/lib/types";
 import { calculateCurrentSemesterForBatch, getSemesterDateRange } from "@/lib/utils";
-// Removed import for BulkUploadWorkflow
+import BulkUploadWorkflow from "@/components/admin/BulkUploadWorkflow";
 
 const StudentManagement = () => {
   const [allStudents, setAllStudents] = useState<StudentDetails[]>([]);
@@ -63,8 +63,8 @@ const StudentManagement = () => {
   const [hods, setHods] = useState<Profile[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedBatch, setSelectedBatch] = useState("all");
-  // Removed uploadFile state
-  // Removed isUploadDialogOpen state
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isAddSingleStudentDialogOpen, setIsAddSingleStudentDialogOpen] = useState(false);
   const [newStudentData, setNewStudentData] = useState<Partial<StudentDetails>>({
     first_name: "",
@@ -144,7 +144,7 @@ const StudentManagement = () => {
     };
   };
 
-  // Helper function to find or create a batch (kept for single student add logic)
+  // Helper function to find or create a batch
   const findOrCreateBatch = async (departmentId: string, batchName: string, existingBatches: Batch[]): Promise<{ batch: Batch | null, error?: string }> => {
     const { startYear, endYear, section } = parseBatchName(batchName);
     
@@ -230,7 +230,135 @@ const StudentManagement = () => {
     })?.id;
   };
 
-  // Removed handleFileUpload function
+  const handleFileUpload = async () => {
+    if (!uploadFile) {
+      showError("Please select a file to upload.");
+      return;
+    }
+
+    try {
+      const parsedStudents = await parseStudentFile(uploadFile);
+      const newStudents: StudentDetails[] = [];
+      const errors: string[] = [];
+
+      // Pre-fetch all profiles for lookup
+      const allTutors = await fetchProfiles('tutor');
+      const allHods = await fetchProfiles('hod');
+
+      for (const student of parsedStudents) {
+        const studentIdentifier = `${student.first_name || 'N/A'} ${student.last_name || ''} (Reg: ${student.register_number || 'N/A'})`;
+
+        // 1. Check for missing required fields
+        const requiredFields = [
+          { key: 'email', label: 'email' },
+          { key: 'register_number', label: 'register_number' },
+          { key: 'department_name', label: 'department_name' },
+          { key: 'batch_name', label: 'batch_name' },
+          { key: 'password', label: 'password' },
+        ];
+        
+        const missingFields: string[] = [];
+        requiredFields.forEach(({ key, label }) => {
+          const value = (student as any)[key];
+          if (!value || (typeof value === 'string' && value.trim() === '')) {
+            missingFields.push(label);
+          }
+        });
+
+        if (missingFields.length > 0) {
+          errors.push(`[Missing Data] ${studentIdentifier}: Missing fields: ${missingFields.join(', ')}.`);
+          continue;
+        }
+
+        // 2. Check Department existence
+        const department = departments.find(d => d.name === student.department_name);
+        if (!department) {
+          errors.push(`[Department Error] ${studentIdentifier}: Department "${student.department_name}" not found.`);
+          continue;
+        }
+
+        // 3. Find or Create Batch
+        const { batch, error: batchCreationError } = await findOrCreateBatch(department.id, student.batch_name!, batches);
+
+        if (batchCreationError) {
+          errors.push(`[Batch Error] ${studentIdentifier}: ${batchCreationError}`);
+          continue;
+        }
+        
+        if (!batch) {
+          errors.push(`[Batch Error] ${studentIdentifier}: Batch "${student.batch_name}" could not be found or created.`);
+          continue;
+        }
+
+        // 4. Resolve Tutor and HOD IDs
+        let tutorId: string | undefined = batch.tutor_id || undefined; // Default to batch tutor
+        let hodId: string | undefined = hods.find(h => h.department_id === department.id)?.id; // Default to department HOD
+
+        if (student.tutor_name) {
+          const resolvedTutorId = findProfileIdByName(student.tutor_name, allTutors);
+          if (resolvedTutorId) {
+            tutorId = resolvedTutorId;
+          } else {
+            errors.push(`[Tutor Error] ${studentIdentifier}: Tutor "${student.tutor_name}" not found. Using default/unassigned.`);
+          }
+        }
+
+        if (student.hod_name) {
+          const resolvedHodId = findProfileIdByName(student.hod_name, allHods);
+          if (resolvedHodId) {
+            hodId = resolvedHodId;
+          } else {
+            errors.push(`[HOD Error] ${studentIdentifier}: HOD "${student.hod_name}" not found. Using default/department HOD.`);
+          }
+        }
+
+        // 5. Attempt Creation
+        const result = await createStudent(
+          {
+            first_name: student.first_name,
+            last_name: student.last_name,
+            username: student.username || `${student.first_name}.${student.register_number}`,
+            email: student.email,
+            phone_number: student.phone_number,
+            department_id: department.id,
+            batch_id: batch.id,
+            role: 'student',
+          },
+          {
+            register_number: student.register_number,
+            parent_name: student.parent_name,
+            batch_id: batch.id,
+            tutor_id: tutorId,
+            hod_id: hodId,
+          },
+          student.password
+        );
+
+        if (result && 'error' in result) {
+          errors.push(`[Creation Failed] ${studentIdentifier}: ${result.error}`);
+        } else if (result) {
+          newStudents.push(result);
+        } else {
+          errors.push(`[Unknown Error] ${studentIdentifier}: Failed to create student.`);
+        }
+      }
+
+      if (newStudents.length > 0) {
+        showSuccess(`${newStudents.length} students uploaded successfully!`);
+      }
+      if (errors.length > 0) {
+        showError(`Bulk upload completed with ${errors.length} errors. Check console for details.`);
+        console.error("Bulk Upload Errors:", errors);
+      }
+      
+      setUploadFile(null);
+      setIsUploadDialogOpen(false);
+      fetchAllData();
+    } catch (error: any) {
+      showError("Failed to parse or upload file: " + error.message);
+      console.error(error);
+    }
+  };
 
   const handleAddSingleStudent = async () => {
     if (!newStudentData.first_name || !newStudentData.email || !newStudentData.register_number || 
@@ -383,8 +511,49 @@ const StudentManagement = () => {
               })}
             </SelectContent>
           </Select>
-          {/* Removed Download Template button */}
-          {/* Removed Bulk Upload Dialog and Button */}
+          <Button variant="outline" onClick={downloadStudentTemplate}>
+            <Download className="mr-2 h-4 w-4" />
+            Download Template
+          </Button>
+          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Upload className="mr-2 h-4 w-4" />
+                Bulk Upload
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Bulk Upload Students</DialogTitle>
+                <DialogDescription>
+                  Follow the steps below to successfully upload multiple student records.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <BulkUploadWorkflow onDownloadTemplate={downloadStudentTemplate} />
+                
+                <Separator className="my-4" />
+
+                <div className="grid w-full max-w-sm items-center gap-1.5">
+                  <Label htmlFor="student-file">Select Completed XLSX File</Label>
+                  <Input
+                    id="student-file"
+                    type="file"
+                    accept=".xlsx"
+                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleFileUpload} disabled={!uploadFile}>
+                  Upload and Process
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={isAddSingleStudentDialogOpen} onOpenChange={handleAddStudentDialogOpenChange}>
             <DialogTrigger asChild>

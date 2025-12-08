@@ -13,10 +13,13 @@ serve(async (req) => {
   }
 
   try {
-    const { action, payload } = await req.json();
+    const requestBody = await req.json();
+    const { action, payload } = requestBody;
+
+    console.log(`Edge Function received action: ${action}`);
+    // console.log('Payload:', JSON.stringify(payload)); // Keep this commented unless needed for sensitive data
 
     // Create a Supabase client with the Service Role Key
-    // This key is available as a Deno environment variable when deployed to Supabase Edge Functions
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -42,9 +45,8 @@ serve(async (req) => {
                 status: 400,
             });
         }
+        
         // Use auth.admin.createUser for server-side creation without email confirmation flow
-        // Note: The client-side code uses 'signUp' action but passes credentials suitable for createUser.
-        // Let's ensure we use the correct admin method: createUser.
         result = await supabaseAdmin.auth.admin.createUser({
             email: payload.credentials.email,
             password: payload.credentials.password,
@@ -66,9 +68,10 @@ serve(async (req) => {
     }
 
     if (result.error) {
-      console.error('Edge Function Error:', result.error);
-      // Return 409 Conflict if the error is likely due to an existing user (409 is common for conflicts)
-      const status = result.error.status === 422 ? 400 : (result.error.status || 500);
+      console.error('Edge Function Error (Supabase Admin API):', result.error);
+      
+      // Determine status code based on Supabase error status or default to 400
+      const status = result.error.status === 422 ? 400 : (result.error.status || 400);
       
       return new Response(JSON.stringify({ error: result.error.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

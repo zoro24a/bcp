@@ -525,15 +525,11 @@ const StudentManagement = () => {
             <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Bulk Upload Students</DialogTitle>
-                <DialogDescription>
-                  Follow the steps below to successfully upload multiple student records.
-                </DialogDescription>
+                {/* Removed DialogDescription */}
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <BulkUploadWorkflow onDownloadTemplate={downloadStudentTemplate} />
+                {/* Removed BulkUploadWorkflow component */}
                 
-                <Separator className="my-4" />
-
                 <div className="grid w-full max-w-sm items-center gap-1.5">
                   <Label htmlFor="student-file">Select Completed XLSX File</Label>
                   <Input

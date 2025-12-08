@@ -232,12 +232,21 @@ const StudentManagement = () => {
         const studentIdentifier = `${student.first_name || 'N/A'} ${student.last_name || ''} (Reg: ${student.register_number || 'N/A'})`;
 
         // 1. Check for missing required fields
+        const requiredFields = [
+          { key: 'email', label: 'email' },
+          { key: 'register_number', label: 'register_number' },
+          { key: 'department_name', label: 'department_name' },
+          { key: 'batch_name', label: 'batch_name' },
+          { key: 'password', label: 'password' },
+        ];
+        
         const missingFields: string[] = [];
-        if (!student.email) missingFields.push('email');
-        if (!student.register_number) missingFields.push('register_number');
-        if (!student.department_name) missingFields.push('department_name');
-        if (!student.batch_name) missingFields.push('batch_name');
-        if (!student.password) missingFields.push('password');
+        requiredFields.forEach(({ key, label }) => {
+          const value = (student as any)[key];
+          if (!value || (typeof value === 'string' && value.trim() === '')) {
+            missingFields.push(label);
+          }
+        });
 
         if (missingFields.length > 0) {
           errors.push(`[Missing Data] ${studentIdentifier}: Missing fields: ${missingFields.join(', ')}.`);

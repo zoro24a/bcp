@@ -52,6 +52,7 @@ import { downloadStudentTemplate, parseStudentFile } from "@/lib/xlsx";
 import { showSuccess, showError } from "@/utils/toast";
 import { StudentDetails, Department, Batch, Profile } from "@/lib/types";
 import { calculateCurrentSemesterForBatch, getSemesterDateRange } from "@/lib/utils";
+import BulkUploadWorkflow from "@/components/admin/BulkUploadWorkflow"; // Import the new component
 
 const StudentManagement = () => {
   const [allStudents, setAllStudents] = useState<StudentDetails[]>([]);
@@ -520,20 +521,20 @@ const StudentManagement = () => {
                 Bulk Upload
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Bulk Upload Students</DialogTitle>
                 <DialogDescription>
-                  Upload an XLSX file to add multiple students at once. Ensure your file follows the provided template.
+                  Follow the steps below to successfully upload multiple student records.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <p className="text-sm text-muted-foreground">
-                  Select an XLSX file with student data. Use the downloadable
-                  template for the correct format.
-                </p>
+                <BulkUploadWorkflow onDownloadTemplate={downloadStudentTemplate} />
+                
+                <Separator className="my-4" />
+
                 <div className="grid w-full max-w-sm items-center gap-1.5">
-                  <Label htmlFor="student-file">XLSX File</Label>
+                  <Label htmlFor="student-file">Select Completed XLSX File</Label>
                   <Input
                     id="student-file"
                     type="file"

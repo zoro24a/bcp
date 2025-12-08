@@ -541,6 +541,13 @@ export const deleteTemplate = async (templateId: string): Promise<boolean> => {
   return true;
 };
 
+// Utility function to remove undefined properties from an object
+const cleanObject = <T extends object>(obj: T): Partial<T> => {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined)
+  ) as Partial<T>;
+};
+
 // Define a specific type for the studentData parameter in createStudent
 interface NewStudentDetailsPayload {
   register_number: string;
@@ -563,6 +570,13 @@ export const createStudent = async (
   // Generate a random password if not provided (e.g., for bulk upload)
   const finalPassword = password || Math.random().toString(36).slice(-8); // Simple random password
 
+  // Clean metadata before sending to Edge Function
+  const cleanedMetaData = cleanObject({
+    ...otherProfileData,
+    username: username || `${otherProfileData.first_name}.${studentData.register_number}`,
+    role: 'student',
+  });
+
   // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
   const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
     body: JSON.stringify({
@@ -572,11 +586,7 @@ export const createStudent = async (
           email: email!,
           password: finalPassword,
           options: {
-            data: {
-              ...otherProfileData,
-              username: username || `${otherProfileData.first_name}.${studentData.register_number}`,
-              role: 'student',
-            },
+            data: cleanedMetaData,
           },
         },
       },
@@ -664,6 +674,8 @@ export const createStudent = async (
 
 export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>, password: string): Promise<Profile | null> => {
   const { email, ...metaData } = profileData;
+  
+  const cleanedMetaData = cleanObject(metaData);
 
   // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
   const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
@@ -674,7 +686,7 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
           email: email!,
           password: password,
           options: {
-            data: metaData,
+            data: cleanedMetaData,
           },
         },
       },
@@ -763,6 +775,8 @@ export const deleteTutor = async (tutorId: string): Promise<boolean> => {
 
 export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>, password: string): Promise<Profile | null> => {
   const { email, ...metaData } = profileData;
+  
+  const cleanedMetaData = cleanObject(metaData);
 
   // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
   const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
@@ -773,7 +787,7 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
           email: email!,
           password: password,
           options: {
-            data: metaData,
+            data: cleanedMetaData,
           },
         },
       },

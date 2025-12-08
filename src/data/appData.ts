@@ -268,7 +268,7 @@ export const fetchTutorDetails = async (tutorId: string): Promise<TutorDetails |
 
   // Combine batch names into a single string if multiple, or just the first one
   const batchAssignedName = assignedBatches && assignedBatches.length > 0
-    ? assignedBatches.map(b => `${b.name} ${b.section || ''}`.trim()).join(', ')
+    ? assignedBataches.map(b => `${b.name} ${b.section || ''}`.trim()).join(', ')
     : undefined;
 
   return {
@@ -570,6 +570,14 @@ export const createStudent = async (
   // Generate a random password if not provided (e.g., for bulk upload)
   const finalPassword = password || Math.random().toString(36).slice(-8); // Simple random password
 
+  // CRITICAL CHECK: Ensure email and password are valid before invoking Edge Function
+  if (!email || typeof email !== 'string' || email.trim() === '') {
+    return { error: "Email is missing or invalid for user creation." };
+  }
+  if (!finalPassword || finalPassword.length < 6) {
+    return { error: "Password must be at least 6 characters long." };
+  }
+
   // Clean metadata before sending to Edge Function
   const cleanedMetaData = cleanObject({
     ...otherProfileData,
@@ -583,7 +591,7 @@ export const createStudent = async (
       action: 'signUp',
       payload: {
         credentials: {
-          email: email!,
+          email: email,
           password: finalPassword,
           options: {
             data: cleanedMetaData,

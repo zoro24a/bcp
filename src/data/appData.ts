@@ -553,8 +553,8 @@ interface NewStudentDetailsPayload {
   register_number: string;
   parent_name?: string;
   batch_id?: string;
-  tutor_id?: string;
-  hod_id?: string;
+  tutor_id?: string; // Now optional
+  hod_id?: string; // Now optional
 }
 
 // Define the return type for createStudent to handle success or specific errors
@@ -625,16 +625,19 @@ export const createStudent = async (
     }
 
     // 2. Insert student-specific details into the 'students' table
+    // Ensure we only insert non-undefined values
+    const studentInsertPayload = cleanObject({
+      id: newProfile.id, // Link to the newly created profile/auth user ID
+      register_number: studentData.register_number,
+      parent_name: studentData.parent_name,
+      batch_id: studentData.batch_id,
+      tutor_id: studentData.tutor_id,
+      hod_id: studentData.hod_id,
+    });
+
     const { data: newStudentSpecificData, error: studentError } = await supabase
       .from("students")
-      .insert({
-        id: newProfile.id, // Link to the newly created profile/auth user ID
-        register_number: studentData.register_number,
-        parent_name: studentData.parent_name,
-        batch_id: studentData.batch_id,
-        tutor_id: studentData.tutor_id,
-        hod_id: studentData.hod_id,
-      })
+      .insert(studentInsertPayload)
       .select()
       .single();
 

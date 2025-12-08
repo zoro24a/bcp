@@ -217,6 +217,17 @@ const StudentManagement = () => {
     return hods.filter(hod => hod.department_id === newStudentData.department_id);
   }, [hods, newStudentData.department_id]);
 
+  // Helper to find profile ID by full name (first_name + last_name)
+  const findProfileIdByName = (fullName: string, profiles: Profile[]): string | undefined => {
+    if (!fullName) return undefined;
+    const normalizedName = fullName.toLowerCase().replace(/\s+/g, ' ').trim();
+    
+    return profiles.find(p => {
+      const profileFullName = `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase().replace(/\s+/g, ' ').trim();
+      return profileFullName === normalizedName;
+    })?.id;
+  };
+
   const handleFileUpload = async () => {
     if (!uploadFile) {
       showError("Please select a file to upload.");
@@ -227,6 +238,10 @@ const StudentManagement = () => {
       const parsedStudents = await parseStudentFile(uploadFile);
       const newStudents: StudentDetails[] = [];
       const errors: string[] = [];
+
+      // Pre-fetch all profiles for lookup
+      const allTutors = await fetchProfiles('tutor');
+      const allHods = await fetchProfiles('hod');
 
       for (const student of parsedStudents) {
         const studentIdentifier = `${student.first_name || 'N/A'} ${student.last_name || ''} (Reg: ${student.register_number || 'N/A'})`;
@@ -273,9 +288,29 @@ const StudentManagement = () => {
           continue;
         }
 
-        const hod = hods.find(h => h.department_id === department.id);
+        // 4. Resolve Tutor and HOD IDs
+        let tutorId: string | undefined = batch.tutor_id || undefined; // Default to batch tutor
+        let hodId: string | undefined = hods.find(h => h.department_id === department.id)?.id; // Default to department HOD
 
-        // 4. Attempt Creation
+        if (student.tutor_name) {
+          const resolvedTutorId = findProfileIdByName(student.tutor_name, allTutors);
+          if (resolvedTutorId) {
+            tutorId = resolvedTutorId;
+          } else {
+            errors.push(`[Tutor Error] ${studentIdentifier}: Tutor "${student.tutor_name}" not found. Using default/unassigned.`);
+          }
+        }
+
+        if (student.hod_name) {
+          const resolvedHodId = findProfileIdByName(student.hod_name, allHods);
+          if (resolvedHodId) {
+            hodId = resolvedHodId;
+          } else {
+            errors.push(`[HOD Error] ${studentIdentifier}: HOD "${student.hod_name}" not found. Using default/department HOD.`);
+          }
+        }
+
+        // 5. Attempt Creation
         const result = await createStudent(
           {
             first_name: student.first_name,
@@ -291,8 +326,8 @@ const StudentManagement = () => {
             register_number: student.register_number,
             parent_name: student.parent_name,
             batch_id: batch.id,
-            tutor_id: batch.tutor_id, // Use the tutor assigned to the batch
-            hod_id: hod?.id,
+            tutor_id: tutorId,
+            hod_id: hodId,
           },
           student.password
         );
@@ -744,7 +779,7 @@ const StudentManagement = () => {
                       {filteredHodsByDepartment.length > 0 ? (
                         filteredHodsByDepartment.map((hod) => (
                           <SelectItem key={hod.id} value={hod.id}>
-                            {`${hod.first_name} ${hod.first_name || ''}`.trim()}
+                            {`${hod.first_name} ${hod.last_name || ''}`.trim()}
                           </SelectItem>
                         ))
                       ) : (

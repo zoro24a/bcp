@@ -10,6 +10,8 @@ const studentTemplateHeaders = [
   "register_number",
   "parent_name",
   "department_name",
+  "tutor_name (Optional)",
+  "hod_name (Optional)",
   "batch_name (e.g., 2024-2028 A)", // Keep the example in the header for user clarity
   "password",
 ];
@@ -24,6 +26,8 @@ const internalKeys = [
   "register_number",
   "parent_name",
   "department_name",
+  "tutor_name",
+  "hod_name",
   "batch_name",
   "password",
 ];
@@ -41,9 +45,9 @@ export const downloadStudentTemplate = () => {
 /**
  * Parses an uploaded XLSX file and returns an array of student profiles.
  * @param file The uploaded file object.
- * @returns A promise that resolves to an array of objects with student details, including department_name, batch_name, and password.
+ * @returns A promise that resolves to an array of objects with student details, including department_name, batch_name, tutor_name, hod_name, and password.
  */
-export const parseStudentFile = (file: File): Promise<Partial<StudentDetails & { password?: string; department_name?: string; batch_name?: string }>[]> => {
+export const parseStudentFile = (file: File): Promise<Partial<StudentDetails & { password?: string; department_name?: string; batch_name?: string; tutor_name?: string; hod_name?: string }>[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -55,7 +59,7 @@ export const parseStudentFile = (file: File): Promise<Partial<StudentDetails & {
         
         // Use raw: true to get the underlying cell value (number or string)
         // Then manually convert the register_number to a string to prevent scientific notation.
-        const json = xlsx.utils.sheet_to_json<Partial<StudentDetails & { password?: string; department_name?: string; batch_name?: string }>>(worksheet, {
+        const json = xlsx.utils.sheet_to_json<Partial<StudentDetails & { password?: string; department_name?: string; batch_name?: string; tutor_name?: string; hod_name?: string }>>(worksheet, {
           header: internalKeys,
           range: 1, // Start reading data from the second row (index 1), skipping the header row
           raw: true, // Read raw values (numbers as numbers, strings as strings)

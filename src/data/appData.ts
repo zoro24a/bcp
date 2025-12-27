@@ -79,7 +79,6 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
 
   if (!studentSpecificData) {
     // This means a profile exists but no corresponding 'students' table entry.
-    // This is a data integrity issue, but we handle it gracefully to prevent a crash.
     console.warn(`Dyad Debug: No student-specific data found for profile ID: ${studentId}. Returning partial data.`);
     return {
       ...profileData,
@@ -97,20 +96,35 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
   let tutor: Profile | null = null;
   let hod: Profile | null = null;
 
-  // 3. Fetch Batch details
+  // 3. Fetch Batch details (without embedded department join)
   if (batch_id) {
     const { data: batchData, error: batchError } = await supabase
       .from("batches")
-      .select(`*, departments(name)`)
+      .select(`*`) // Removed departments(name) join
       .eq("id", batch_id)
       .single();
+      
     if (batchError) {
       console.warn("Dyad Debug: Error fetching batch details:", batchError);
     } else {
       batch = batchData as Batch;
-      department = (batchData as any).departments as Department;
       console.log("Dyad Debug: Fetched batchData:", batch);
-      console.log("Dyad Debug: Fetched departmentData:", department);
+
+      // 3b. Fetch Department details separately
+      if (batch?.department_id) {
+        const { data: departmentData, error: departmentError } = await supabase
+          .from("departments")
+          .select(`name`)
+          .eq("id", batch.department_id)
+          .single();
+        
+        if (departmentError) {
+          console.warn("Dyad Debug: Error fetching department details:", departmentError);
+        } else {
+          department = departmentData as Department;
+          console.log("Dyad Debug: Fetched departmentData:", department);
+        }
+      }
     }
   } else {
     console.log("Dyad Debug: No batch_id found for student.");
@@ -157,7 +171,7 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
     batch_id: batch?.id,
     batch_name: batch ? `${batch.name} ${batch.section || ''}`.trim() : undefined,
     current_semester: batch?.current_semester,
-    department_id: department?.id,
+    department_id: department?.id || batch?.department_id, // Use department ID from batch if department name failed
     department_name: department?.name,
     tutor_id: tutor?.id,
     tutor_name: tutor ? `${tutor.first_name} ${tutor.last_name || ''}`.trim() : undefined,
@@ -194,22 +208,34 @@ export const fetchAllStudentsWithDetails = async (): Promise<StudentDetails[]> =
     throw new Error("Failed to fetch all profiles: " + profilesError.message);
   }
 
-  // Fetch all batches with department names
+  // Fetch all batches with department names (Removed embedded join here too for safety)
   const { data: batchesData, error: batchesError } = await supabase
     .from("batches")
-    .select(`id, name, section, current_semester, departments(name)`);
+    .select(`id, name, section, current_semester, department_id`); // Removed departments(name)
 
   if (batchesError) {
     console.error("Error fetching all batches:", batchesError);
     throw new Error("Failed to fetch all batches: " + batchesError.message);
   }
+  
+  // Fetch all departments separately
+  const { data: departmentsData, error: departmentsError } = await supabase
+    .from("departments")
+    .select(`id, name`);
+
+  if (departmentsError) {
+    console.error("Error fetching all departments:", departmentsError);
+    throw new Error("Failed to fetch all departments: " + departmentsError.message);
+  }
 
   const profilesMap = new Map(profilesData.map(p => [p.id, p]));
   const batchesMap = new Map(batchesData.map(b => [b.id, b]));
+  const departmentsMap = new Map(departmentsData.map(d => [d.id, d]));
 
   return studentsData.map((student: any) => {
     const studentProfile = profilesMap.get(student.id);
     const batch = batchesMap.get(student.batch_id);
+    const department = departmentsMap.get(batch?.department_id);
     const tutorProfile = profilesMap.get(student.tutor_id);
     const hodProfile = profilesMap.get(student.hod_id);
 
@@ -227,8 +253,8 @@ export const fetchAllStudentsWithDetails = async (): Promise<StudentDetails[]> =
       batch_id: batch?.id,
       batch_name: batch ? `${batch.name} ${batch.section || ''}`.trim() : undefined,
       current_semester: batch?.current_semester,
-      department_id: (batch?.departments as unknown as Department)?.id, // Corrected type access
-      department_name: (batch?.departments as unknown as Department)?.name,
+      department_id: department?.id,
+      department_name: department?.name,
       tutor_id: tutorProfile?.id,
       tutor_name: tutorProfile ? `${tutorProfile.first_name} ${tutorProfile.last_name || ''}`.trim() : undefined,
       hod_id: hodProfile?.id,
@@ -243,8 +269,7 @@ export const fetchTutorDetails = async (tutorId: string): Promise<TutorDetails |
   const { data: profileData, error: profileError } = await supabase
     .from("profiles")
     .select(`
-      *,
-      departments(name)
+      *
     `)
     .eq("id", tutorId)
     .single();
@@ -253,8 +278,20 @@ export const fetchTutorDetails = async (tutorId: string): Promise<TutorDetails |
     console.error("Error fetching tutor profile:", profileError);
     throw new Error("Failed to fetch tutor profile: " + profileError?.message);
   }
-
-  const department = (profileData as any).departments as Department;
+  
+  let department: Department | null = null;
+  if (profileData.department_id) {
+    const { data: departmentData, error: departmentError } = await supabase
+      .from("departments")
+      .select(`name`)
+      .eq("id", profileData.department_id)
+      .single();
+    if (departmentError) {
+      console.warn("Error fetching department name for tutor:", departmentError);
+    } else {
+      department = departmentData as Department;
+    }
+  }
 
   // 2. Separately fetch the batch(es) assigned to this tutor
   const { data: assignedBatches, error: batchesError } = await supabase
@@ -282,8 +319,7 @@ export const fetchHodDetails = async (hodId: string): Promise<HodDetails | null>
   const { data: profileData, error: profileError } = await supabase
     .from("profiles")
     .select(`
-      *,
-      departments(name)
+      *
     `)
     .eq("id", hodId)
     .single();
@@ -293,7 +329,19 @@ export const fetchHodDetails = async (hodId: string): Promise<HodDetails | null>
     throw new Error("Failed to fetch HOD profile: " + profileError?.message);
   }
 
-  const department = (profileData as any).departments as Department;
+  let department: Department | null = null;
+  if (profileData.department_id) {
+    const { data: departmentData, error: departmentError } = await supabase
+      .from("departments")
+      .select(`name`)
+      .eq("id", profileData.department_id)
+      .single();
+    if (departmentError) {
+      console.warn("Error fetching department name for HOD:", departmentError);
+    } else {
+      department = departmentData as Department;
+    }
+  }
 
   return {
     ...profileData,
@@ -314,7 +362,6 @@ export const fetchDepartments = async (): Promise<Department[]> => {
 export const fetchBatches = async (): Promise<Batch[]> => {
   const { data, error } = await supabase.from("batches").select(`
     *,
-    departments(name),
     tutors:profiles!batches_tutor_id_fkey(first_name, last_name)
   `);
   if (error) {

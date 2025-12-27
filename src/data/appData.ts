@@ -101,14 +101,14 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
   if (batch_id) {
     const { data: batchData, error: batchError } = await supabase
       .from("batches")
-      .select(`*, departments(id, name)`)
+      .select(`*, departments(name)`)
       .eq("id", batch_id)
       .single();
     if (batchError) {
       console.warn("Dyad Debug: Error fetching batch details:", batchError);
     } else {
       batch = batchData as Batch;
-      department = batchData.departments as Department;
+      department = (batchData as any).departments as Department;
       console.log("Dyad Debug: Fetched batchData:", batch);
       console.log("Dyad Debug: Fetched departmentData:", department);
     }
@@ -227,8 +227,8 @@ export const fetchAllStudentsWithDetails = async (): Promise<StudentDetails[]> =
       batch_id: batch?.id,
       batch_name: batch ? `${batch.name} ${batch.section || ''}`.trim() : undefined,
       current_semester: batch?.current_semester,
-      department_id: batch?.departments?.id, // Assuming department_id is needed
-      department_name: batch?.departments?.name,
+      department_id: (batch?.departments as unknown as Department)?.id, // Corrected type access
+      department_name: (batch?.departments as unknown as Department)?.name,
       tutor_id: tutorProfile?.id,
       tutor_name: tutorProfile ? `${tutorProfile.first_name} ${tutorProfile.last_name || ''}`.trim() : undefined,
       hod_id: hodProfile?.id,
@@ -254,7 +254,7 @@ export const fetchTutorDetails = async (tutorId: string): Promise<TutorDetails |
     throw new Error("Failed to fetch tutor profile: " + profileError?.message);
   }
 
-  const department = profileData.departments as unknown as Department;
+  const department = (profileData as any).departments as Department;
 
   // 2. Separately fetch the batch(es) assigned to this tutor
   const { data: assignedBatches, error: batchesError } = await supabase
@@ -268,7 +268,7 @@ export const fetchTutorDetails = async (tutorId: string): Promise<TutorDetails |
 
   // Combine batch names into a single string if multiple, or just the first one
   const batchAssignedName = assignedBatches && assignedBatches.length > 0
-    ? assignedBataches.map(b => `${b.name} ${b.section || ''}`.trim()).join(', ')
+    ? assignedBatches.map(b => `${b.name} ${b.section || ''}`.trim()).join(', ')
     : undefined;
 
   return {
@@ -293,7 +293,7 @@ export const fetchHodDetails = async (hodId: string): Promise<HodDetails | null>
     throw new Error("Failed to fetch HOD profile: " + profileError?.message);
   }
 
-  const department = profileData.departments as unknown as Department;
+  const department = (profileData as any).departments as Department;
 
   return {
     ...profileData,
@@ -488,7 +488,7 @@ export const updateTemplate = async (
   }
   // If template_type is 'pdf' or 'word' and no new file is provided,
   // file_url remains undefined, meaning it won't be updated in the DB,
-  // thus retaining the existing file_url. This is the desired behavior.
+  // thus retaining the existing file_url.
 
   const updatePayload: Partial<CertificateTemplate> = { ...updates };
   if (file_url !== undefined) { // Only include file_url in payload if it was explicitly set (to a new URL or null)
@@ -607,6 +607,19 @@ export const createStudent = async (
     if (authError.message.includes('User already exists') || authError.message.includes('duplicate key value')) {
       return { error: `A user with email "${email}" already exists.` };
     }
+    // Log the full error response if available
+    const responseBody = (authError as any).context?.body;
+    if (responseBody) {
+        console.error("Edge Function Response Body:", responseBody);
+        try {
+            const parsedBody = JSON.parse(responseBody);
+            if (parsedBody.error) {
+                return { error: "Failed to create student user: " + parsedBody.error };
+            }
+        } catch (e) {
+            // Ignore parsing error
+        }
+    }
     return { error: "Failed to create student user: " + authError.message };
   }
 
@@ -706,7 +719,17 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
 
   if (authError) {
     console.error("Error signing up tutor user via Edge Function:", authError);
-    showError("Failed to create tutor user: " + authError.message);
+    const responseBody = (authError as any).context?.body;
+    if (responseBody) {
+        try {
+            const parsedBody = JSON.parse(responseBody);
+            showError("Failed to create tutor user: " + (parsedBody.error || authError.message));
+        } catch (e) {
+            showError("Failed to create tutor user: " + authError.message);
+        }
+    } else {
+        showError("Failed to create tutor user: " + authError.message);
+    }
     return null;
   }
 
@@ -761,7 +784,17 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
 
   if (error) {
     console.error("Error updating user password via Edge Function:", error);
-    showError("Failed to update user password: " + error.message);
+    const responseBody = (error as any).context?.body;
+    if (responseBody) {
+        try {
+            const parsedBody = JSON.parse(responseBody);
+            showError("Failed to update user password: " + (parsedBody.error || error.message));
+        } catch (e) {
+            showError("Failed to update user password: " + error.message);
+        }
+    } else {
+        showError("Failed to update user password: " + error.message);
+    }
     return false;
   }
   console.log("User password updated successfully for user:", (data as any)?.user?.id);
@@ -807,7 +840,17 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
 
   if (authError) {
     console.error("Error signing up HOD user via Edge Function:", authError);
-    showError("Failed to create HOD user: " + authError.message);
+    const responseBody = (authError as any).context?.body;
+    if (responseBody) {
+        try {
+            const parsedBody = JSON.parse(responseBody);
+            showError("Failed to create HOD user: " + (parsedBody.error || authError.message));
+        } catch (e) {
+            showError("Failed to create HOD user: " + authError.message);
+        }
+    } else {
+        showError("Failed to create HOD user: " + authError.message);
+    }
     return null;
   }
 

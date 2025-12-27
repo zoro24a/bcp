@@ -525,10 +525,11 @@ const StudentManagement = () => {
             <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Bulk Upload Students</DialogTitle>
-                {/* Removed DialogDescription */}
+                <DialogDescription>
+                  Upload a completed XLSX file to register multiple students at once.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                {/* Removed BulkUploadWorkflow component */}
                 
                 <div className="grid w-full max-w-sm items-center gap-1.5">
                   <Label htmlFor="student-file">Select Completed XLSX File</Label>

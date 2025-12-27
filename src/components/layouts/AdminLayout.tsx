@@ -1,20 +1,10 @@
 import Sidebar from "@/components/shared/Sidebar";
 import Header from "@/components/shared/Header";
-import {
-  LayoutDashboard,
-  User,
-  Users,
-  Building,
-  FileText,
-  ClipboardList,
-  Briefcase,
-  Settings,
-} from "lucide-react";
+import { LayoutDashboard, User, Users, Building, FileText, ClipboardList, Briefcase, Settings, } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import { NavItem } from "@/lib/types";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-
 const navItems: NavItem[] = [
   {
     title: "Dashboard",
@@ -47,38 +37,27 @@ const navItems: NavItem[] = [
     href: "/admin/template-management",
     icon: <FileText className="h-4 w-4" />,
   },
-  {
-    title: "User Management",
-    href: "/admin/user-management",
-    icon: <Settings className="h-4 w-4" />,
-  },
+  // Removed User Management
   {
     title: "Profile",
     href: "/admin/profile",
     icon: <User className="h-4 w-4" />,
   },
 ];
-
 const AdminLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
-
   return (
     <div className="flex flex-col h-screen w-full">
       <div className="flex flex-1">
-        <Sidebar
-          navItems={navItems}
-          portalName="Admin Portal"
-          variant="admin"
-          isCollapsed={isCollapsed}
-          toggleCollapse={toggleCollapse}
-        />
-        <div className="flex flex-col flex-1"> {/* This div now contains both Header and main content */}
+        <Sidebar navItems={navItems} portalName="Admin Portal" variant="admin" isCollapsed={isCollapsed} toggleCollapse={toggleCollapse} />
+        <div className="flex flex-col flex-1">
+          {/* This div now contains both Header and main content */}
           <Header navItems={navItems} portalName="Admin Portal" />
-          <main className="flex-1 p-6 admin-layout-theme wavy-background"> {/* Applied wavy-background */}
+          <main className="flex-1 p-6 admin-layout-theme wavy-background">
+            {/* Applied wavy-background */}
             <Outlet />
           </main>
         </div>
@@ -86,5 +65,4 @@ const AdminLayout = () => {
     </div>
   );
 };
-
 export default AdminLayout;

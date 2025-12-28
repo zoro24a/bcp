@@ -25,8 +25,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { updateRequestStatus } from "@/data/appData";
-import { BonafideRequest } from "@/lib/types";
+import { updateRequestStatus, fetchStudentDetails } from "@/data/appData";
+import { BonafideRequest, StudentDetails } from "@/lib/types";
 import { showSuccess, showError } from "@/utils/toast";
 import { formatDateToIndian } from "@/lib/utils";
 import RequestDetailsView from "@/components/shared/RequestDetailsView";
@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 const HodPendingRequests = () => {
   const { user, profile } = useSession();
   const [requests, setRequests] = useState<BonafideRequest[]>([]);
+  const [studentDetailsMap, setStudentDetailsMap] = useState<Map<string, StudentDetails>>(new Map());
   const [selectedRequest, setSelectedRequest] =
     useState<BonafideRequest | null>(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -46,6 +47,8 @@ const HodPendingRequests = () => {
   const fetchHodRequests = async () => {
     if (user?.id && profile?.department_id) {
       setLoading(true);
+      
+      // Fetch requests pending HOD approval (RLS handles filtering by department)
       const { data: requestsData, error: requestsError } = await supabase
         .from('requests')
         .select('*')
@@ -56,6 +59,19 @@ const HodPendingRequests = () => {
         setRequests([]);
       } else {
         setRequests(requestsData as BonafideRequest[]);
+        
+        // Fetch details for all students involved in these requests
+        const uniqueStudentIds = Array.from(new Set(requestsData.map(r => r.student_id)));
+        const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
+        const detailsResults = await Promise.all(detailsPromises);
+        
+        const newMap = new Map<string, StudentDetails>();
+        detailsResults.forEach(detail => {
+            if (detail) {
+                newMap.set(detail.id, detail);
+            }
+        });
+        setStudentDetailsMap(newMap);
       }
       setLoading(false);
     }
@@ -121,7 +137,11 @@ const HodPendingRequests = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student ID</TableHead>
+                <TableHead>Reg No.</TableHead>
+                <TableHead>Student Name</TableHead>
+                <TableHead>Batch</TableHead>
+                <TableHead>Sem</TableHead>
+                <TableHead>Tutor</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -129,23 +149,32 @@ const HodPendingRequests = () => {
             </TableHeader>
             <TableBody>
               {requests.length > 0 ? (
-                requests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium">
-                      <div>{request.student_id}</div>
-                    </TableCell>
-                    <TableCell>{formatDateToIndian(request.date)}</TableCell>
-                    <TableCell>{request.type}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" onClick={() => openReviewDialog(request)}>
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                requests.map((request) => {
+                  const student = studentDetailsMap.get(request.student_id);
+                  return (
+                    <TableRow key={request.id}>
+                      <TableCell className="font-medium">
+                        {student?.register_number || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
+                      </TableCell>
+                      <TableCell>{student?.batch_name || "N/A"}</TableCell>
+                      <TableCell>{student?.current_semester || "N/A"}</TableCell>
+                      <TableCell>{student?.tutor_name || "N/A"}</TableCell>
+                      <TableCell>{formatDateToIndian(request.date)}</TableCell>
+                      <TableCell>{request.type}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" onClick={() => openReviewDialog(request)}>
+                          Review
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     No pending requests.
                   </TableCell>
                 </TableRow>

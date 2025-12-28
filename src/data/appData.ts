@@ -58,7 +58,7 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
   }
   console.log("Dyad Debug: Fetched profileData:", profileData);
 
-  // 2. Fetch the student-specific details using maybeSingle() to prevent crashes
+  // 2. Fetch the student-specific details using maybeSingle()
   const { data: studentSpecificData, error: studentSpecificError } = await supabase
     .from("students")
     .select(`
@@ -69,45 +69,41 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
       hod_id
     `)
     .eq("id", studentId)
-    .maybeSingle(); // Use maybeSingle to gracefully handle missing student records
+    .maybeSingle();
 
   if (studentSpecificError) {
-    // An actual database error occurred
     console.error("Dyad Debug: Error fetching student-specific data:", studentSpecificError);
     throw new Error("Failed to fetch student-specific data: " + studentSpecificError.message);
   }
 
-  if (!studentSpecificData) {
-    // This means a profile exists but no corresponding 'students' table entry.
-    console.warn(`Dyad Debug: No student-specific data found for profile ID: ${studentId}. Returning partial data.`);
-    return {
-      ...profileData,
-      register_number: 'N/A', // Provide default values for required fields
-      // Other student-specific fields will be undefined
-    } as StudentDetails;
-  }
+  // Initialize student details with defaults if studentSpecificData is null
+  const studentDetailsBase = {
+    register_number: studentSpecificData?.register_number || 'N/A',
+    parent_name: studentSpecificData?.parent_name,
+    batch_id: studentSpecificData?.batch_id,
+    tutor_id: studentSpecificData?.tutor_id,
+    hod_id: studentSpecificData?.hod_id,
+  };
 
-  console.log("Dyad Debug: Fetched studentSpecificData (with IDs):", studentSpecificData);
-
-  const { batch_id, tutor_id, hod_id } = studentSpecificData;
+  const { batch_id, tutor_id, hod_id } = studentDetailsBase;
 
   let batch: Batch | null = null;
   let department: Department | null = null;
   let tutor: Profile | null = null;
   let hod: Profile | null = null;
 
-  // 3. Fetch Batch details (without embedded department join)
+  // 3. Fetch Batch details
   if (batch_id) {
     const { data: batchData, error: batchError } = await supabase
       .from("batches")
-      .select(`*`) // Removed departments(name) join
+      .select(`*`)
       .eq("id", batch_id)
-      .single();
+      .maybeSingle(); // Use maybeSingle for robustness
       
     if (batchError) {
       console.warn("Dyad Debug: Error fetching batch details:", batchError);
     } else {
-      batch = batchData as Batch;
+      batch = batchData as Batch || null;
       console.log("Dyad Debug: Fetched batchData:", batch);
 
       // 3b. Fetch Department details separately
@@ -116,12 +112,12 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
           .from("departments")
           .select(`name`)
           .eq("id", batch.department_id)
-          .single();
+          .maybeSingle();
         
         if (departmentError) {
           console.warn("Dyad Debug: Error fetching department details:", departmentError);
         } else {
-          department = departmentData as Department;
+          department = departmentData as Department || null;
           console.log("Dyad Debug: Fetched departmentData:", department);
         }
       }
@@ -136,11 +132,11 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
       .from("profiles")
       .select(`id, first_name, last_name`)
       .eq("id", tutor_id)
-      .single();
+      .maybeSingle();
     if (tutorError) {
       console.warn("Dyad Debug: Error fetching tutor profile:", tutorError);
     } else {
-      tutor = tutorData as Profile;
+      tutor = tutorData as Profile || null;
       console.log("Dyad Debug: Fetched tutorData:", tutor);
     }
   } else {
@@ -153,11 +149,11 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
       .from("profiles")
       .select(`id, first_name, last_name`)
       .eq("id", hod_id)
-      .single();
+      .maybeSingle();
     if (hodError) {
       console.warn("Dyad Debug: Error fetching HOD profile:", hodError);
     } else {
-      hod = hodData as Profile;
+      hod = hodData as Profile || null;
       console.log("Dyad Debug: Fetched hodData:", hod);
     }
   } else {
@@ -166,12 +162,11 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
 
   return {
     ...profileData,
-    register_number: studentSpecificData.register_number,
-    parent_name: studentSpecificData.parent_name,
+    ...studentDetailsBase, // Includes register_number, parent_name, etc.
     batch_id: batch?.id,
     batch_name: batch ? `${batch.name} ${batch.section || ''}`.trim() : undefined,
     current_semester: batch?.current_semester,
-    department_id: department?.id || batch?.department_id, // Use department ID from batch if department name failed
+    department_id: department?.id || batch?.department_id,
     department_name: department?.name,
     tutor_id: tutor?.id,
     tutor_name: tutor ? `${tutor.first_name} ${tutor.last_name || ''}`.trim() : undefined,
@@ -285,19 +280,18 @@ export const fetchTutorDetails = async (tutorId: string): Promise<TutorDetails |
       .from("departments")
       .select(`name`)
       .eq("id", profileData.department_id)
-      .single();
+      .maybeSingle();
     if (departmentError) {
       console.warn("Error fetching department name for tutor:", departmentError);
     } else {
-      department = departmentData as Department;
+      department = departmentData as Department || null;
     }
   }
 
   // 2. Separately fetch the batch(es) assigned to this tutor
   const { data: assignedBatches, error: batchesError } = await supabase
     .from("batches")
-    .select(`name, section`)
-    .eq("tutor_id", tutorId);
+    .select(`name, section`);
 
   if (batchesError) {
     console.warn("Error fetching assigned batches for tutor:", batchesError);
@@ -335,11 +329,11 @@ export const fetchHodDetails = async (hodId: string): Promise<HodDetails | null>
       .from("departments")
       .select(`name`)
       .eq("id", profileData.department_id)
-      .single();
+      .maybeSingle();
     if (departmentError) {
       console.warn("Error fetching department name for HOD:", departmentError);
     } else {
-      department = departmentData as Department;
+      department = departmentData as Department || null;
     }
   }
 

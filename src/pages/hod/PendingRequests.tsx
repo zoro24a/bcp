@@ -47,33 +47,39 @@ const HodPendingRequests = () => {
   const fetchHodRequests = async () => {
     if (user?.id && profile?.department_id) {
       setLoading(true);
-      
-      // Fetch requests pending HOD approval (RLS handles filtering by department)
-      const { data: requestsData, error: requestsError } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('status', 'Pending HOD Approval');
+      try {
+        // Fetch requests pending HOD approval (RLS handles filtering by department)
+        const { data: requestsData, error: requestsError } = await supabase
+          .from('requests')
+          .select('*')
+          .eq('status', 'Pending HOD Approval');
 
-      if (requestsError) {
-        showError("Error fetching pending requests: " + requestsError.message);
+        if (requestsError) {
+          showError("Error fetching pending requests: " + requestsError.message);
+          setRequests([]);
+        } else {
+          setRequests(requestsData as BonafideRequest[]);
+          
+          // Fetch details for all students involved in these requests
+          const uniqueStudentIds = Array.from(new Set(requestsData.map(r => r.student_id)));
+          const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
+          const detailsResults = await Promise.all(detailsPromises);
+          
+          const newMap = new Map<string, StudentDetails>();
+          detailsResults.forEach(detail => {
+              if (detail) {
+                  newMap.set(detail.id, detail);
+              }
+          });
+          setStudentDetailsMap(newMap);
+        }
+      } catch (error) {
+        console.error("HodPendingRequests fetch error:", error);
+        showError("Failed to load requests due to a data error.");
         setRequests([]);
-      } else {
-        setRequests(requestsData as BonafideRequest[]);
-        
-        // Fetch details for all students involved in these requests
-        const uniqueStudentIds = Array.from(new Set(requestsData.map(r => r.student_id)));
-        const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
-        const detailsResults = await Promise.all(detailsPromises);
-        
-        const newMap = new Map<string, StudentDetails>();
-        detailsResults.forEach(detail => {
-            if (detail) {
-                newMap.set(detail.id, detail);
-            }
-        });
-        setStudentDetailsMap(newMap);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
   };
 

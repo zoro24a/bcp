@@ -57,54 +57,61 @@ const TutorPendingRequests = () => {
   const fetchTutorRequests = async () => {
     if (user?.id) {
       setLoading(true);
-      const { data: studentsData, error: studentsError } = await supabase
-        .from('students')
-        .select('id')
-        .eq('tutor_id', user.id);
+      try {
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('id')
+          .eq('tutor_id', user.id);
 
-      if (studentsError) {
-        showError("Error fetching assigned students: " + studentsError.message);
+        if (studentsError) {
+          showError("Error fetching assigned students: " + studentsError.message);
+          setRequests([]);
+          setLoading(false);
+          return;
+        }
+
+        const tutorStudentsIds = studentsData?.map(s => s.id) || [];
+        if (tutorStudentsIds.length === 0) {
+          setRequests([]);
+          setLoading(false);
+          return;
+        }
+
+        const { data: requestsData, error: requestsError } = await supabase
+          .from('requests')
+          .select('*')
+          .eq('status', 'Pending Tutor Approval')
+          .in('student_id', tutorStudentsIds);
+
+        if (requestsError) {
+          showError("Error fetching pending requests: " + requestsError.message);
+          setRequests([]);
+        } else {
+          setRequests(requestsData as BonafideRequest[]);
+          
+          // Fetch details for all students involved in these requests
+          const uniqueStudentIds = Array.from(new Set(requestsData.map(r => r.student_id)));
+          const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
+          const detailsResults = await Promise.all(detailsPromises);
+          
+          const newMap = new Map<string, StudentDetails>();
+          detailsResults.forEach(detail => {
+              if (detail) {
+                  newMap.set(detail.id, detail);
+              }
+          });
+          setStudentDetailsMap(newMap);
+        }
+
+        const fetchedTemplates = await fetchTemplates();
+        setTemplates(fetchedTemplates);
+      } catch (error) {
+        console.error("TutorPendingRequests fetch error:", error);
+        showError("Failed to load requests due to a data error.");
         setRequests([]);
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const tutorStudentsIds = studentsData?.map(s => s.id) || [];
-      if (tutorStudentsIds.length === 0) {
-        setRequests([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data: requestsData, error: requestsError } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('status', 'Pending Tutor Approval')
-        .in('student_id', tutorStudentsIds);
-
-      if (requestsError) {
-        showError("Error fetching pending requests: " + requestsError.message);
-        setRequests([]);
-      } else {
-        setRequests(requestsData as BonafideRequest[]);
-        
-        // Fetch details for all students involved in these requests
-        const uniqueStudentIds = Array.from(new Set(requestsData.map(r => r.student_id)));
-        const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
-        const detailsResults = await Promise.all(detailsPromises);
-        
-        const newMap = new Map<string, StudentDetails>();
-        detailsResults.forEach(detail => {
-            if (detail) {
-                newMap.set(detail.id, detail);
-            }
-        });
-        setStudentDetailsMap(newMap);
-      }
-
-      const fetchedTemplates = await fetchTemplates();
-      setTemplates(fetchedTemplates);
-      setLoading(false);
     }
   };
 

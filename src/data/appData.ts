@@ -398,12 +398,14 @@ export const updateRequestStatus = async (requestId: string, status: RequestStat
   if (templateId) {
     updateData.template_id = templateId;
   }
-  const { data, error } = await supabase.from("requests").update(updateData).eq("id", requestId).select().single();
+  // MODIFIED: Removed .single() to avoid PGRST116 error when RLS prevents reading the updated row back.
+  const { data, error } = await supabase.from("requests").update(updateData).eq("id", requestId).select();
   if (error) {
     console.error("Error updating request status:", error);
     return null;
   }
-  return data as BonafideRequest;
+  // Return the first element if data is an array, or null if empty
+  return data?.[0] as BonafideRequest || null;
 };
 
 export const updateProfile = async (userId: string, updates: Partial<Profile>): Promise<Profile | null> => {

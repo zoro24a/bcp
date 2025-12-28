@@ -120,6 +120,8 @@ const HodPendingRequests = () => {
     setIsReviewOpen(true);
   };
 
+  const studentForReview = selectedRequest ? studentDetailsMap.get(selectedRequest.student_id) : null;
+
   if (loading) {
     return (
       <Card>
@@ -198,7 +200,7 @@ const HodPendingRequests = () => {
               Review the details of the student's request before taking action.
             </DialogDescription>
           </DialogHeader>
-          {selectedRequest && <RequestDetailsView request={selectedRequest} />}
+          {selectedRequest && <RequestDetailsView request={selectedRequest} student={studentForReview} />}
           <DialogFooter>
             <Button
               variant="outline"

@@ -2,28 +2,18 @@ import { BonafideRequest, StudentDetails } from "@/lib/types";
 import { formatDateToIndian } from "@/lib/utils";
 import ProfileField from "./ProfileField";
 import { useEffect, useState } from "react";
-import { fetchStudentDetails } from "@/data/appData";
+// Removed import { fetchStudentDetails } from "@/data/appData";
 
 interface RequestDetailsViewProps {
   request: BonafideRequest;
+  student: StudentDetails | null; // Now required as a prop
 }
 
-const RequestDetailsView = ({ request }: RequestDetailsViewProps) => {
-  const [student, setStudent] = useState<StudentDetails | null>(null);
-  const [loading, setLoading] = useState(true);
+const RequestDetailsView = ({ request, student }: RequestDetailsViewProps) => {
+  // Removed internal state and useEffect for fetching student details
 
-  useEffect(() => {
-    const getStudent = async () => {
-      setLoading(true);
-      const studentData = await fetchStudentDetails(request.student_id);
-      setStudent(studentData);
-      setLoading(false);
-    };
-    getStudent();
-  }, [request.student_id]);
-
-  if (loading) {
-    return <div>Loading student details...</div>;
+  if (!student) {
+    return <div>Student details unavailable.</div>;
   }
 
   return (
@@ -33,20 +23,19 @@ const RequestDetailsView = ({ request }: RequestDetailsViewProps) => {
         {formatDateToIndian(request.date)}
       </ProfileField>
       <ProfileField label="Student Name">
-        {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
+        {`${student.first_name} ${student.last_name || ''}`.trim()}
       </ProfileField>
-      <ProfileField label="Register Number">{student?.register_number || "N/A"}</ProfileField>
-      {student && (
-        <>
-          <ProfileField label="Department">{student.department_name || "N/A"}</ProfileField>
-          <ProfileField label="Batch">{student.batch_name || "N/A"}</ProfileField>
-          <ProfileField label="Current Semester">
-            {student.current_semester || "N/A"}
-          </ProfileField>
-          <ProfileField label="Tutor">{student.tutor_name || "N/A"}</ProfileField>
-          <ProfileField label="HOD">{student.hod_name || "N/A"}</ProfileField>
-        </>
-      )}
+      <ProfileField label="Register Number">{student.register_number || "N/A"}</ProfileField>
+      
+      {/* Student details are now guaranteed to be present if we reach here */}
+      <ProfileField label="Department">{student.department_name || "N/A"}</ProfileField>
+      <ProfileField label="Batch">{student.batch_name || "N/A"}</ProfileField>
+      <ProfileField label="Current Semester">
+        {student.current_semester || "N/A"}
+      </ProfileField>
+      <ProfileField label="Tutor">{student.tutor_name || "N/A"}</ProfileField>
+      <ProfileField label="HOD">{student.hod_name || "N/A"}</ProfileField>
+      
       <ProfileField label="Request Type">{request.type}</ProfileField>
       {request.sub_type && (
         <ProfileField label="Sub-type">{request.sub_type}</ProfileField>

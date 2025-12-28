@@ -89,15 +89,20 @@ const TutorPendingRequests = () => {
         } else {
           setRequests(requestsData as BonafideRequest[]);
           
-          // Fetch details for all students involved in these requests
+          // Fetch details for all students involved in these requests using Promise.allSettled
           const uniqueStudentIds = Array.from(new Set(requestsData.map(r => r.student_id)));
           const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
-          const detailsResults = await Promise.all(detailsPromises);
+          
+          // Use Promise.allSettled to ensure all promises complete, regardless of individual success/failure
+          const detailsResults = await Promise.allSettled(detailsPromises);
           
           const newMap = new Map<string, StudentDetails>();
-          detailsResults.forEach(detail => {
-              if (detail) {
-                  newMap.set(detail.id, detail);
+          detailsResults.forEach(result => {
+              if (result.status === 'fulfilled' && result.value) {
+                  newMap.set(result.value.id, result.value);
+              } else if (result.status === 'rejected') {
+                  console.error("Failed to fetch student detail:", result.reason);
+                  // Optionally show a toast error here, but we proceed with available data
               }
           });
           setStudentDetailsMap(newMap);
@@ -152,6 +157,8 @@ const TutorPendingRequests = () => {
     setSelectedRequest(request);
     setIsReviewOpen(true);
   };
+
+  const studentForReview = selectedRequest ? studentDetailsMap.get(selectedRequest.student_id) : null;
 
   if (loading) {
     return (
@@ -227,7 +234,7 @@ const TutorPendingRequests = () => {
               Review the details of the student's request before taking action.
             </DialogDescription>
           </DialogHeader>
-          {selectedRequest && <RequestDetailsView request={selectedRequest} />}
+          {selectedRequest && <RequestDetailsView request={selectedRequest} student={studentForReview} />}
           <DialogFooter>
             <Button
               variant="outline"

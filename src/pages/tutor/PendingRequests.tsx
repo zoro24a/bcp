@@ -298,7 +298,7 @@ const TutorPendingRequests = () => {
             <DialogDescription>
               Provide a clear reason for returning this request to the student.
             </DialogDescription>
-          </DialogDescription>
+          </DialogHeader>
           <div className="grid gap-4 py-4">
             <Label htmlFor="return-reason">
               Please provide a reason for returning this request.

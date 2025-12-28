@@ -137,10 +137,10 @@ const PrincipalPendingRequests = () => {
 
   const openReviewDialog = async (request: BonafideRequest) => {
     setSelectedRequest(request);
-    setIsReviewOpen(true);
     // Fetch student details for the preview
     const student = await fetchStudentDetails(request.student_id);
     setPreviewStudentDetails(student);
+    setIsReviewOpen(true);
   };
 
   if (loading) {
@@ -214,7 +214,7 @@ const PrincipalPendingRequests = () => {
               Review the details of the student's request before taking action.
             </DialogDescription>
           </DialogHeader>
-          {selectedRequest && <RequestDetailsView request={selectedRequest} />}
+          {selectedRequest && <RequestDetailsView request={selectedRequest} student={previewStudentDetails} />}
           <DialogFooter>
             <Button
               variant="outline"

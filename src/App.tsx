@@ -17,13 +17,12 @@ import PrincipalLayout from "@/components/layouts/PrincipalLayout";
 // Admin Pages
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminStudentManagement from "@/pages/admin/StudentManagement";
-// import AdminBatchManagement from "@/pages/admin/BatchManagement"; // Removed
+import AdminBatchManagement from "@/pages/admin/BatchManagement";
 import AdminManageFaculties from "@/pages/admin/ManageFaculties";
 import AdminManageTutors from "@/pages/admin/ManageTutors";
 import AdminDepartmentManagement from "@/pages/admin/DepartmentManagement";
 import AdminTemplateManagement from "@/pages/admin/TemplateManagement";
 import AdminProfile from "@/pages/admin/Profile";
-import AdminUserManagement from "@/pages/admin/UserManagement";
 // Student Pages
 import StudentDashboard from "@/pages/student/Dashboard";
 import StudentNewRequest from "@/pages/student/NewRequest";
@@ -101,12 +100,11 @@ const AppRoutes = () => {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="student-management" element={<AdminStudentManagement />} />
-        {/* Removed Batch Management Route */}
+        <Route path="batch-management" element={<AdminBatchManagement />} />
         <Route path="manage-faculties" element={<AdminManageFaculties />} />
         <Route path="manage-tutors" element={<AdminManageTutors />} />
         <Route path="department-management" element={<AdminDepartmentManagement />} />
         <Route path="template-management" element={<AdminTemplateManagement />} />
-        {/* Removed User Management Route */}
         <Route path="profile" element={<AdminProfile />} />
       </Route>
       {/* Student Routes */}

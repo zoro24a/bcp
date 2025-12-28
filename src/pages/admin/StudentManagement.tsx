@@ -325,7 +325,7 @@ const StudentManagement = () => {
             role: 'student',
           },
           {
-            register_number: student.register_number,
+            register_number: student.register_number!,
             parent_name: student.parent_name,
             batch_id: batch.id,
             tutor_id: tutorId,
@@ -337,7 +337,8 @@ const StudentManagement = () => {
         if (result && 'error' in result) {
           errors.push(`[Creation Failed] ${studentIdentifier}: ${result.error}`);
         } else if (result) {
-          newStudents.push(result);
+          // Type guard: check if 'error' property does NOT exist
+          newStudents.push(result as StudentDetails);
         } else {
           errors.push(`[Unknown Error] ${studentIdentifier}: Failed to create student.`);
         }
@@ -420,7 +421,7 @@ const StudentManagement = () => {
         role: 'student',
       },
       {
-        register_number: newStudentData.register_number,
+        register_number: newStudentData.register_number!,
         parent_name: newStudentData.parent_name,
         batch_id: batchIdToUse,
         tutor_id: newStudentData.tutor_id === "unassigned" ? undefined : newStudentData.tutor_id,
@@ -432,7 +433,8 @@ const StudentManagement = () => {
     if (result && 'error' in result) {
       showError(result.error); // Display specific error from createStudent
     } else if (result) {
-      showSuccess(`Student ${result.first_name} added successfully!`);
+      // Type guard: check if 'error' property does NOT exist
+      showSuccess(`Student ${(result as StudentDetails).first_name} added successfully!`);
       setIsAddSingleStudentDialogOpen(false);
       fetchAllData(); // Refresh student list
     } else {

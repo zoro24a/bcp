@@ -171,7 +171,6 @@ const TutorPendingRequests = () => {
               <TableRow>
                 <TableHead>Reg No.</TableHead>
                 <TableHead>Student Name</TableHead>
-                <TableHead>Batch</TableHead>
                 <TableHead>Sem</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
@@ -190,7 +189,6 @@ const TutorPendingRequests = () => {
                       <TableCell>
                         {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
                       </TableCell>
-                      <TableCell>{student?.batch_name || "N/A"}</TableCell>
                       <TableCell>{student?.current_semester || "N/A"}</TableCell>
                       <TableCell>{formatDateToIndian(request.date)}</TableCell>
                       <TableCell>{request.type}</TableCell>
@@ -204,7 +202,7 @@ const TutorPendingRequests = () => {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     No pending requests.
                   </TableCell>
                 </TableRow>

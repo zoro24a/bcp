@@ -67,6 +67,7 @@ export interface Profile {
   phone_number?: string;
   avatar_url?: string;
   role: "student" | "tutor" | "hod" | "admin" | "principal";
+  gender?: "Male" | "Female"; // Added gender
   department_id?: string; // For HODs, Tutors
   batch_id?: string; // For Students, Tutors
   departments?: Department; // Added for joined data

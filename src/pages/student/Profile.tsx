@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Imported CardTitle
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import ProfileHeader from "@/components/shared/ProfileHeader";
 import ProfileField from "@/components/shared/ProfileField";
@@ -11,7 +11,7 @@ import { fetchStudentDetails, updateProfile } from "@/data/appData";
 import { showError, showSuccess } from "@/utils/toast";
 
 const StudentProfile = () => {
-  const { user, profile: sessionProfile } = useSession();
+  const { user } = useSession();
   const [profile, setProfile] = useState<StudentDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,29 +43,11 @@ const StudentProfile = () => {
   };
 
   if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Loading Profile...</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Please wait while we fetch your profile details.</p>
-        </CardContent>
-      </Card>
-    );
+    return <div className="text-center p-10">Loading Profile...</div>;
   }
 
   if (!profile) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile Not Found</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Unable to load student profile. Please contact support.</p>
-        </CardContent>
-      </Card>
-    );
+    return <div className="text-center p-10 text-destructive">Profile Not Found</div>;
   }
 
   return (
@@ -77,16 +59,20 @@ const StudentProfile = () => {
         <Separator className="my-4" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
           <ProfileField label="Username">{profile.username}</ProfileField>
-          <ProfileField label="Register Number">
-            {profile.register_number}
-          </ProfileField>
+          <ProfileField label="Register Number">{profile.register_number}</ProfileField>
+          
+          <div>
+            <p className="text-sm text-muted-foreground">Gender</p>
+            <div className="mt-1">
+              <Badge variant="outline" className="text-base font-medium">
+                {profile.gender || "Male"}
+              </Badge>
+            </div>
+          </div>
+
           <ProfileField label="Academic Year">{profile.batch_name || "N/A"}</ProfileField>
-          <ProfileField label="Current Semester">
-            {profile.current_semester || "N/A"}
-          </ProfileField>
-          <ProfileField label="Status">
-            <Badge variant="success">Active</Badge>
-          </ProfileField>
+          <ProfileField label="Current Semester">{profile.current_semester || "N/A"}</ProfileField>
+          <ProfileField label="Status"><Badge variant="success">Active</Badge></ProfileField>
           <ProfileField label="Tutor">{profile.tutor_name || "N/A"}</ProfileField>
           <ProfileField label="HOD">{profile.hod_name || "N/A"}</ProfileField>
           <ProfileField label="Department">{profile.department_name || "N/A"}</ProfileField>

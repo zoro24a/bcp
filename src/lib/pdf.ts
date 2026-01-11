@@ -1,7 +1,6 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { BonafideRequest, CertificateTemplate, StudentDetails } from "./types";
-import { fetchStudentDetails, fetchTemplates } from "@/data/appData";
 
 /**
  * Generates the final HTML content for a certificate by populating a template with data.
@@ -24,7 +23,21 @@ export const getCertificateHtml = (
     return "<p>Error: Student details not found.</p>";
   }
 
-  let content = template.content
+  const isFemale = student.gender === "Female";
+  
+  // Pronoun and salutation mappings
+  const genderMap = {
+    salutation: isFemale ? "Ms." : "Mr.",
+    parentRelation: isFemale ? "D/o" : "S/o",
+    heShe: isFemale ? "She" : "He",
+    hisHer: isFemale ? "her" : "his",
+    himHer: isFemale ? "her" : "him"
+  };
+
+  let content = template.content || "";
+
+  // Replace standard placeholders
+  content = content
     .replace(/{studentName}/g, `${student.first_name} ${student.last_name || ''}`.trim())
     .replace(/{studentId}/g, student.register_number)
     .replace(/{reason}/g, request.type)
@@ -32,6 +45,23 @@ export const getCertificateHtml = (
     .replace(/{department}/g, student.department_name || 'N/A')
     .replace(/{batch}/g, student.batch_name || 'N/A')
     .replace(/{currentSemester}/g, student.current_semester?.toString() || 'N/A');
+
+  // Replace automatic gender markers if present in the template text
+  // This allows the template to have text like "He/She" or "Mr/Ms" which will be cleaned up
+  content = content
+    .replace(/Mr\/Ms/g, genderMap.salutation)
+    .replace(/S\/o or D\/o/g, genderMap.parentRelation)
+    .replace(/He\/She/g, genderMap.heShe)
+    .replace(/his\/her/g, genderMap.hisHer)
+    .replace(/\bHe\b/g, genderMap.heShe) // Match whole word "He"
+    .replace(/\bhis\b/g, genderMap.hisHer);
+
+  // Also replace explicit gender placeholders if the user wants to use them
+  content = content
+    .replace(/{salutation}/g, genderMap.salutation)
+    .replace(/{parentRelation}/g, genderMap.parentRelation)
+    .replace(/{heShe}/g, genderMap.heShe)
+    .replace(/{hisHer}/g, genderMap.hisHer);
 
   if (addSignature) {
     content +=
@@ -72,11 +102,6 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
   const ratio = canvasWidth / canvasHeight;
   const imgWidth = pdfWidth;
   const imgHeight = imgWidth / ratio;
-
-  // Check if content exceeds one page
-  if (imgHeight > pdfHeight) {
-    console.warn("PDF content might be too long for a single page.");
-  }
 
   pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
   pdf.save(fileName);

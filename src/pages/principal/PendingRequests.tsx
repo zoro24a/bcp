@@ -21,12 +21,12 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
-  DialogDescription, // Added DialogDescription
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchRequests, fetchStudentDetails, fetchTemplates, updateRequestStatus } from "@/data/appData";
+import { fetchStudentDetails, fetchTemplates, updateRequestStatus } from "@/data/appData";
 import { BonafideRequest, StudentDetails, CertificateTemplate } from "@/lib/types";
 import { showSuccess, showError } from "@/utils/toast";
 import { generatePdf, getCertificateHtml } from "@/lib/pdf";
@@ -38,9 +38,10 @@ import { supabase } from "@/integrations/supabase/client";
 const PrincipalPendingRequests = () => {
   const { user } = useSession();
   const [requests, setRequests] = useState<BonafideRequest[]>([]);
+  const [studentDetailsMap, setStudentDetailsMap] = useState<Map<string, StudentDetails>>(new Map());
   const [selectedRequest, setSelectedRequest] =
     useState<BonafideRequest | null>(null);
-  const [previewStudentDetails, setPreviewStudentDetails] = useState<StudentDetails | null>(null); // New state for preview
+  const [previewStudentDetails, setPreviewStudentDetails] = useState<StudentDetails | null>(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isReturnOpen, setIsReturnOpen] = useState(false);
   const [isApproveOpen, setIsApproveOpen] = useState(false);
@@ -51,21 +52,40 @@ const PrincipalPendingRequests = () => {
 
   const fetchPrincipalRequests = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('requests')
-      .select('*')
-      .eq('status', 'Pending Principal Approval');
+    try {
+      const { data, error } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('status', 'Pending Principal Approval');
 
-    if (error) {
-      showError("Error fetching pending requests: " + error.message);
-      setRequests([]);
-    } else {
-      setRequests(data as BonafideRequest[]);
+      if (error) {
+        showError("Error fetching pending requests: " + error.message);
+        setRequests([]);
+      } else {
+        setRequests(data as BonafideRequest[]);
+        
+        // Fetch details for all students involved in these requests
+        const uniqueStudentIds = Array.from(new Set(data.map(r => r.student_id)));
+        const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
+        const detailsResults = await Promise.all(detailsPromises);
+        
+        const newMap = new Map<string, StudentDetails>();
+        detailsResults.forEach(detail => {
+            if (detail) {
+                newMap.set(detail.id, detail);
+            }
+        });
+        setStudentDetailsMap(newMap);
+      }
+
+      const fetchedTemplates = await fetchTemplates();
+      setTemplates(fetchedTemplates);
+    } catch (err) {
+      console.error("PrincipalPendingRequests fetch error:", err);
+      showError("Failed to load requests and student details.");
+    } finally {
+      setLoading(false);
     }
-
-    const fetchedTemplates = await fetchTemplates();
-    setTemplates(fetchedTemplates);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -75,13 +95,13 @@ const PrincipalPendingRequests = () => {
   const handleApproveAndDownload = async () => {
     if (!selectedRequest) return;
 
-    const student: StudentDetails | null = await fetchStudentDetails(selectedRequest.student_id);
+    const student = studentDetailsMap.get(selectedRequest.student_id);
     const template: CertificateTemplate | undefined = templates.find(
       (t) => t.id === selectedRequest.template_id
     );
 
     if (!student || !template) {
-      showError("Could not fetch student or template for certificate generation.");
+      showError("Could not retrieve student or template for certificate generation.");
       return;
     }
 
@@ -95,7 +115,6 @@ const PrincipalPendingRequests = () => {
       const fileName = `Bonafide-${student.register_number}.pdf`;
       await generatePdf(htmlContent, fileName);
     } else if (template.file_url) {
-      // For PDF or Word templates, directly download the file
       const link = document.createElement('a');
       link.href = template.file_url;
       link.download = `${template.name}-${student.register_number}.${template.template_type}`;
@@ -109,11 +128,11 @@ const PrincipalPendingRequests = () => {
 
     const updated = await updateRequestStatus(selectedRequest.id, "Approved");
     if (updated) {
-      showSuccess(`Request ${selectedRequest.id} approved and document downloaded.`);
-      fetchPrincipalRequests(); // Refresh list
+      showSuccess(`Request approved and document downloaded.`);
+      fetchPrincipalRequests();
       setIsApproveOpen(false);
       setSelectedRequest(null);
-      setPreviewStudentDetails(null); // Clear preview student details
+      setPreviewStudentDetails(null);
       setAddSignature(true);
     } else {
       showError("Failed to approve request.");
@@ -124,22 +143,20 @@ const PrincipalPendingRequests = () => {
     if (!selectedRequest || !returnReason) return;
     const updated = await updateRequestStatus(selectedRequest.id, "Returned by Principal", returnReason);
     if (updated) {
-      showSuccess(`Request ${selectedRequest.id} returned to HOD.`);
-      fetchPrincipalRequests(); // Refresh list
+      showSuccess(`Request returned to HOD.`);
+      fetchPrincipalRequests();
       setIsReturnOpen(false);
       setReturnReason("");
       setSelectedRequest(null);
-      setPreviewStudentDetails(null); // Clear preview student details
+      setPreviewStudentDetails(null);
     } else {
       showError("Failed to return request.");
     }
   };
 
-  const openReviewDialog = async (request: BonafideRequest) => {
+  const openReviewDialog = (request: BonafideRequest) => {
     setSelectedRequest(request);
-    // Fetch student details for the preview
-    const student = await fetchStudentDetails(request.student_id);
-    setPreviewStudentDetails(student);
+    setPreviewStudentDetails(studentDetailsMap.get(request.student_id) || null);
     setIsReviewOpen(true);
   };
 
@@ -166,7 +183,9 @@ const PrincipalPendingRequests = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student ID</TableHead>
+                <TableHead>Reg No.</TableHead>
+                <TableHead>Student Name</TableHead>
+                <TableHead>Department</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -174,23 +193,30 @@ const PrincipalPendingRequests = () => {
             </TableHeader>
             <TableBody>
               {requests.length > 0 ? (
-                requests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium">
-                      <div>{request.student_id}</div>
-                    </TableCell>
-                    <TableCell>{formatDateToIndian(request.date)}</TableCell>
-                    <TableCell>{request.type}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" onClick={() => openReviewDialog(request)}>
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                requests.map((request) => {
+                  const student = studentDetailsMap.get(request.student_id);
+                  return (
+                    <TableRow key={request.id}>
+                      <TableCell className="font-medium">
+                        {student?.register_number || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
+                      </TableCell>
+                      <TableCell>{student?.department_name || "N/A"}</TableCell>
+                      <TableCell>{formatDateToIndian(request.date)}</TableCell>
+                      <TableCell>{request.type}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" onClick={() => openReviewDialog(request)}>
+                          Review
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     No pending requests.
                   </TableCell>
                 </TableRow>
@@ -262,7 +288,7 @@ const PrincipalPendingRequests = () => {
                     dangerouslySetInnerHTML={{
                       __html: getCertificateHtml(
                         selectedRequest,
-                        previewStudentDetails, // Use the fetched student details
+                        previewStudentDetails,
                         templates.find(
                           (t) => t.id === selectedRequest.template_id
                         ),

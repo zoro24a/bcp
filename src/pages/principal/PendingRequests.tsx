@@ -95,47 +95,63 @@ const PrincipalPendingRequests = () => {
   const handleApproveAndDownload = async () => {
     if (!selectedRequest) return;
 
-    const student = studentDetailsMap.get(selectedRequest.student_id);
+    const student = previewStudentDetails; // Use the details already verified in preview
+    
+    if (!selectedRequest.template_id) {
+      showError("Error: No certificate template was assigned to this request. Please return it to the HOD/Tutor.");
+      return;
+    }
+
     const template: CertificateTemplate | undefined = templates.find(
       (t) => t.id === selectedRequest.template_id
     );
 
-    if (!student || !template) {
-      showError("Could not retrieve student or template for certificate generation.");
+    if (!student) {
+      showError("Error: Failed to retrieve student details (Department/Batch info) for this request.");
       return;
     }
 
-    if (template.template_type === "html") {
-      const htmlContent = getCertificateHtml(
-        selectedRequest,
-        student,
-        template,
-        addSignature
-      );
-      const fileName = `Bonafide-${student.register_number}.pdf`;
-      await generatePdf(htmlContent, fileName);
-    } else if (template.file_url) {
-      const link = document.createElement('a');
-      link.href = template.file_url;
-      link.download = `${template.name}-${student.register_number}.${template.template_type}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      showError("No file URL found for this template type.");
+    if (!template) {
+      showError(`Error: The assigned certificate template (ID: ${selectedRequest.template_id}) could not be found.`);
       return;
     }
 
-    const updated = await updateRequestStatus(selectedRequest.id, "Approved");
-    if (updated) {
-      showSuccess(`Request approved and document downloaded.`);
-      fetchPrincipalRequests();
-      setIsApproveOpen(false);
-      setSelectedRequest(null);
-      setPreviewStudentDetails(null);
-      setAddSignature(true);
-    } else {
-      showError("Failed to approve request.");
+    try {
+      if (template.template_type === "html") {
+        const htmlContent = getCertificateHtml(
+          selectedRequest,
+          student,
+          template,
+          addSignature
+        );
+        const fileName = `Bonafide-${student.register_number}.pdf`;
+        await generatePdf(htmlContent, fileName);
+      } else if (template.file_url) {
+        const link = document.createElement('a');
+        link.href = template.file_url;
+        link.download = `${template.name}-${student.register_number}.${template.template_type}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        showError("Error: The template is missing its source file or content.");
+        return;
+      }
+
+      const updated = await updateRequestStatus(selectedRequest.id, "Approved");
+      if (updated) {
+        showSuccess(`Request approved and document downloaded.`);
+        fetchPrincipalRequests();
+        setIsApproveOpen(false);
+        setSelectedRequest(null);
+        setPreviewStudentDetails(null);
+        setAddSignature(true);
+      } else {
+        showError("The certificate was downloaded, but the request status could not be updated in the database.");
+      }
+    } catch (err: any) {
+      console.error("Generation error:", err);
+      showError("An error occurred while generating the certificate: " + err.message);
     }
   };
 
@@ -156,7 +172,8 @@ const PrincipalPendingRequests = () => {
 
   const openReviewDialog = (request: BonafideRequest) => {
     setSelectedRequest(request);
-    setPreviewStudentDetails(studentDetailsMap.get(request.student_id) || null);
+    const details = studentDetailsMap.get(request.student_id) || null;
+    setPreviewStudentDetails(details);
     setIsReviewOpen(true);
   };
 

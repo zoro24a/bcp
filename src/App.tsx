@@ -45,23 +45,22 @@ import PrincipalPendingRequests from "@/pages/principal/PendingRequests";
 import PrincipalRequestHistory from "@/pages/principal/RequestHistory";
 import PrincipalDepartmentOverview from "@/pages/principal/DepartmentOverview";
 import PrincipalProfile from "@/pages/principal/Profile";
+
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) => {
   const { session, loading, profile } = useSession();
   if (loading) {
-    // Still loading session or profile, show a loading indicator or null
     return null;
   }
   if (!session || !profile) {
-    // Not authenticated, redirect to login
     return <Navigate to="/login" replace />;
   }
   if (!allowedRoles.includes(profile.role)) {
-    // Authenticated but not authorized, redirect to a suitable page (e.g., home or unauthorized)
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
 };
+
 const App = () => {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
@@ -74,10 +73,10 @@ const App = () => {
     </ThemeProvider>
   );
 };
+
 const AppRoutes = () => {
   const { session, loading, profile } = useSession();
   if (loading) {
-    // You can render a global loading spinner here if needed
     return (
       <div className="flex items-center justify-center min-h-screen bg-muted/40">
         <p className="text-lg text-muted-foreground">Loading application...</p>
@@ -91,6 +90,7 @@ const AppRoutes = () => {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/login" element={<AuthPage />} />
+      
       {/* Admin Routes */}
       <Route path="/admin" element={
         <ProtectedRoute allowedRoles={["admin"]}>
@@ -107,6 +107,7 @@ const AppRoutes = () => {
         <Route path="template-management" element={<AdminTemplateManagement />} />
         <Route path="profile" element={<AdminProfile />} />
       </Route>
+      
       {/* Student Routes */}
       <Route path="/student" element={
         <ProtectedRoute allowedRoles={["student"]}>
@@ -119,6 +120,7 @@ const AppRoutes = () => {
         <Route path="my-requests" element={<StudentMyRequests />} />
         <Route path="profile" element={<StudentProfile />} />
       </Route>
+      
       {/* Tutor Routes */}
       <Route path="/tutor" element={
         <ProtectedRoute allowedRoles={["tutor"]}>
@@ -130,8 +132,10 @@ const AppRoutes = () => {
         <Route path="pending-requests" element={<TutorPendingRequests />} />
         <Route path="request-history" element={<TutorRequestHistory />} />
         <Route path="students" element={<TutorStudents />} />
+        <Route path="template-management" element={<AdminTemplateManagement />} />
         <Route path="profile" element={<TutorProfile />} />
       </Route>
+      
       {/* HOD Routes */}
       <Route path="/hod" element={
         <ProtectedRoute allowedRoles={["hod"]}>
@@ -144,6 +148,7 @@ const AppRoutes = () => {
         <Route path="request-history" element={<HodRequestHistory />} />
         <Route path="profile" element={<HodProfile />} />
       </Route>
+      
       {/* Principal Routes */}
       <Route path="/principal" element={
         <ProtectedRoute allowedRoles={["principal"]}>
@@ -157,6 +162,7 @@ const AppRoutes = () => {
         <Route path="department-overview" element={<PrincipalDepartmentOverview />} />
         <Route path="profile" element={<PrincipalProfile />} />
       </Route>
+      
       {/* Catch-all for 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>

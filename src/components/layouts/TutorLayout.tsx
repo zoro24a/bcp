@@ -6,6 +6,7 @@ import {
   History,
   FileClock,
   Users,
+  FileText,
 } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import { NavItem } from "@/lib/types";
@@ -33,6 +34,11 @@ const navItems: NavItem[] = [
     icon: <Users className="h-4 w-4" />,
   },
   {
+    title: "Template Management",
+    href: "/tutor/template-management",
+    icon: <FileText className="h-4 w-4" />,
+  },
+  {
     title: "Profile",
     href: "/tutor/profile",
     icon: <User className="h-4 w-4" />,
@@ -56,9 +62,9 @@ const TutorLayout = () => {
           isCollapsed={isCollapsed}
           toggleCollapse={toggleCollapse}
         />
-        <div className="flex flex-col flex-1"> {/* This div now contains both Header and main content */}
+        <div className="flex flex-col flex-1">
           <Header navItems={navItems} portalName="Tutor Portal" />
-          <main className="flex-1 p-6 wavy-background"> {/* Applied wavy-background */}
+          <main className="flex-1 p-6 wavy-background">
             <Outlet />
           </main>
         </div>

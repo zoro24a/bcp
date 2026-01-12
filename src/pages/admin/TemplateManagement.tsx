@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Download } from "lucide-react";
+import { MoreHorizontal, Download, Info } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const TemplateManagement = () => {
   const [templates, setTemplates] =
@@ -179,7 +180,15 @@ const TemplateManagement = () => {
           Add New Template
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Master Template Tip</AlertTitle>
+          <AlertDescription>
+            You can maintain a single Master Template using dynamic placeholders like <strong>{`{purpose}`}</strong>. The student's chosen purpose (e.g., Scholarship, Passport) will be injected automatically at runtime.
+          </AlertDescription>
+        </Alert>
+
         <Table>
           <TableHeader>
             <TableRow>
@@ -298,9 +307,23 @@ const TemplateManagement = () => {
                       setCurrentTemplate({ ...currentTemplate, content })
                     }
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Use placeholders like {"{studentName}"}, {"{studentId}"}, etc.
-                  </p>
+                  <div className="mt-4 p-4 bg-muted rounded-md space-y-2">
+                    <p className="text-sm font-semibold">Available Dynamic Placeholders:</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-mono">
+                      <div>{`{studentName}`}</div>
+                      <div>{`{studentId}`}</div>
+                      <div>{`{purpose}`}</div>
+                      <div>{`{subPurpose}`}</div>
+                      <div>{`{parentName}`}</div>
+                      <div>{`{department}`}</div>
+                      <div>{`{batch}`}</div>
+                      <div>{`{currentSemester}`}</div>
+                      <div>{`{date}`}</div>
+                      <div>{`{detailedReason}`}</div>
+                      <div>{`{salutation}`} (Mr./Ms.)</div>
+                      <div>{`{heShe}`}</div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="grid gap-2">

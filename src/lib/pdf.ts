@@ -40,23 +40,26 @@ export const getCertificateHtml = (
   content = content
     .replace(/{studentName}/g, `${student.first_name} ${student.last_name || ''}`.trim())
     .replace(/{studentId}/g, student.register_number)
-    .replace(/{reason}/g, request.type)
+    .replace(/{purpose}/g, request.type) // Injected dynamically (e.g., Scholarship, Passport)
+    .replace(/{subPurpose}/g, request.sub_type || '') // Optional sub-type
+    .replace(/{reason}/g, request.type) // Legacy support for {reason}
+    .replace(/{detailedReason}/g, request.reason) // The actual reason text provided by the student
     .replace(/{parentName}/g, student.parent_name || 'N/A')
     .replace(/{department}/g, student.department_name || 'N/A')
     .replace(/{batch}/g, student.batch_name || 'N/A')
-    .replace(/{currentSemester}/g, student.current_semester?.toString() || 'N/A');
+    .replace(/{currentSemester}/g, student.current_semester?.toString() || 'N/A')
+    .replace(/{date}/g, new Date().toLocaleDateString('en-GB'));
 
-  // Replace automatic gender markers if present in the template text
-  // This allows the template to have text like "He/She" or "Mr/Ms" which will be cleaned up
+  // Replace automatic gender markers
   content = content
     .replace(/Mr\/Ms/g, genderMap.salutation)
     .replace(/S\/o or D\/o/g, genderMap.parentRelation)
     .replace(/He\/She/g, genderMap.heShe)
     .replace(/his\/her/g, genderMap.hisHer)
-    .replace(/\bHe\b/g, genderMap.heShe) // Match whole word "He"
+    .replace(/\bHe\b/g, genderMap.heShe)
     .replace(/\bhis\b/g, genderMap.hisHer);
 
-  // Also replace explicit gender placeholders if the user wants to use them
+  // Explicit gender placeholders
   content = content
     .replace(/{salutation}/g, genderMap.salutation)
     .replace(/{parentRelation}/g, genderMap.parentRelation)
@@ -65,7 +68,7 @@ export const getCertificateHtml = (
 
   if (addSignature) {
     content +=
-      "<p style='margin-top: 40px; text-align: right;'>--- E-Signed by Principal Thompson ---</p>";
+      "<p style='margin-top: 40px; text-align: right;'>--- E-Signed by Principal ---</p>";
   }
 
   return content;
@@ -78,10 +81,10 @@ export const getCertificateHtml = (
  */
 export const generatePdf = async (htmlContent: string, fileName: string) => {
   const container = document.createElement("div");
-  container.style.width = "210mm"; // A4 width
+  container.style.width = "210mm";
   container.style.padding = "20mm";
   container.style.position = "absolute";
-  container.style.left = "-9999px"; // Render off-screen
+  container.style.left = "-9999px";
   container.innerHTML = `<div class="prose max-w-none">${htmlContent}</div>`;
   document.body.appendChild(container);
 

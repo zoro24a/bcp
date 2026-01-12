@@ -34,6 +34,7 @@ import { formatDateToIndian } from "@/lib/utils";
 import RequestDetailsView from "@/components/shared/RequestDetailsView";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import { supabase } from "@/integrations/supabase/client";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 
 const PrincipalPendingRequests = () => {
   const { user } = useSession();
@@ -288,50 +289,54 @@ const PrincipalPendingRequests = () => {
           setAddSignature(true);
         }
       }}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0"> {/* Added max-h and flex-col */}
+          <DialogHeader className="p-6 pb-2"> {/* Added padding */}
             <DialogTitle>Approve Certificate</DialogTitle>
             <DialogDescription>
               Review the certificate content and choose whether to add an e-signature before approving and downloading.
             </DialogDescription>
           </DialogHeader>
-          {selectedRequest && (
-            <div className="py-4">
-              <h3 className="font-semibold mb-2">Certificate Preview</h3>
-              {templates.find((t) => t.id === selectedRequest.template_id)?.template_type === "html" ? (
-                <>
-                  <div
-                    className="p-4 border rounded-md bg-muted prose dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{
-                      __html: getCertificateHtml(
-                        selectedRequest,
-                        previewStudentDetails,
-                        templates.find(
-                          (t) => t.id === selectedRequest.template_id
+          
+          <ScrollArea className="flex-1 p-6 pt-2"> {/* Wrapped content in ScrollArea */}
+            {selectedRequest && (
+              <div className="py-4">
+                <h3 className="font-semibold mb-2">Certificate Preview</h3>
+                {templates.find((t) => t.id === selectedRequest.template_id)?.template_type === "html" ? (
+                  <>
+                    <div
+                      className="p-4 border rounded-md bg-muted prose dark:prose-invert max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: getCertificateHtml(
+                          selectedRequest,
+                          previewStudentDetails,
+                          templates.find(
+                            (t) => t.id === selectedRequest.template_id
+                          ),
+                          addSignature
                         ),
-                        addSignature
-                      ),
-                    }}
-                  />
-                  <div className="flex items-center space-x-2 mt-4">
-                    <Checkbox
-                      id="e-sign"
-                      checked={addSignature}
-                      onCheckedChange={(checked) =>
-                        setAddSignature(checked as boolean)
-                      }
+                      }}
                     />
-                    <Label htmlFor="e-sign">Add E-Signature</Label>
-                  </div>
-                </>
-              ) : (
-                <p className="text-muted-foreground">
-                  This is a file-based template ({templates.find((t) => t.id === selectedRequest.template_id)?.template_type?.toUpperCase()}). It will be downloaded directly.
-                </p>
-              )}
-            </div>
-          )}
-          <DialogFooter>
+                    <div className="flex items-center space-x-2 mt-4">
+                      <Checkbox
+                        id="e-sign"
+                        checked={addSignature}
+                        onCheckedChange={(checked) =>
+                          setAddSignature(checked as boolean)
+                        }
+                      />
+                      <Label htmlFor="e-sign">Add E-Signature</Label>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">
+                    This is a file-based template ({templates.find((t) => t.id === selectedRequest.template_id)?.template_type?.toUpperCase()}). It will be downloaded directly.
+                  </p>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+
+          <DialogFooter className="p-6 border-t bg-muted/20"> {/* Added padding and background */}
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>

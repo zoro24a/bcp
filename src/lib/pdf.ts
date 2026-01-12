@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas"; // Keep this import, jsPDF.html might use it internally
 import { BonafideRequest, CertificateTemplate, StudentDetails } from "./types";
 
 /**
@@ -17,9 +17,11 @@ export const getCertificateHtml = (
   addSignature: boolean = false
 ): string => {
   if (!template) {
+    console.error("[getCertificateHtml] Error: Certificate template not found.");
     return "<p>Error: Certificate template not found.</p>";
   }
   if (!student) {
+    console.error("[getCertificateHtml] Error: Student details not found.");
     return "<p>Error: Student details not found.</p>";
   }
 
@@ -71,6 +73,7 @@ export const getCertificateHtml = (
       "<p style='margin-top: 40px; text-align: right;'>--- E-Signed by Principal ---</p>";
   }
 
+  console.log("[getCertificateHtml] Final HTML content generated:", content); // Debugging line
   return content;
 };
 
@@ -80,32 +83,41 @@ export const getCertificateHtml = (
  * @param fileName The name of the file to be downloaded.
  */
 export const generatePdf = async (htmlContent: string, fileName: string) => {
-  const container = document.createElement("div");
-  container.style.width = "210mm";
-  container.style.padding = "20mm";
-  container.style.position = "absolute";
-  container.style.left = "-9999px";
-  container.innerHTML = `<div class="prose max-w-none">${htmlContent}</div>`;
-  document.body.appendChild(container);
+  console.log("[generatePdf] Starting PDF generation for file:", fileName);
 
-  const canvas = await html2canvas(container, { scale: 2 });
-  document.body.removeChild(container);
-
-  const imgData = canvas.toDataURL("image/png");
   const pdf = new jsPDF({
     orientation: "portrait",
     unit: "mm",
     format: "a4",
   });
 
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = pdf.internal.pageSize.getHeight();
-  const canvasWidth = canvas.width;
-  const canvasHeight = canvas.height;
-  const ratio = canvasWidth / canvasHeight;
-  const imgWidth = pdfWidth;
-  const imgHeight = imgWidth / ratio;
+  // Create a temporary div to render the HTML content
+  const tempDiv = document.createElement("div");
+  tempDiv.style.width = "210mm"; // A4 width
+  tempDiv.style.padding = "20mm"; // Padding for margins
+  tempDiv.style.boxSizing = "border-box"; // Include padding in width
+  tempDiv.style.position = "absolute";
+  tempDiv.style.left = "-9999px"; // Hide it off-screen
+  tempDiv.style.backgroundColor = "white"; // Ensure white background for PDF
+  tempDiv.innerHTML = `<div class="prose max-w-none">${htmlContent}</div>`; // Apply prose for styling
+  document.body.appendChild(tempDiv);
 
-  pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-  pdf.save(fileName);
+  // Use jsPDF's html method for better integration
+  await pdf.html(tempDiv, {
+    callback: function (doc) {
+      doc.save(fileName);
+      document.body.removeChild(tempDiv); // Clean up the temporary element
+      console.log("[generatePdf] PDF generated and downloaded successfully.");
+    },
+    x: 0,
+    y: 0,
+    html2canvas: {
+      scale: 0.75, // Adjust scale for better fit on A4, might need tweaking
+      useCORS: true, // Important if images are from external sources
+      logging: true, // Enable logging for html2canvas
+      // windowWidth: 210 * 3.779528, // A4 width in pixels at 96dpi (210mm * 3.779528 px/mm)
+      // windowHeight: 297 * 3.779528, // A4 height in pixels at 96dpi (297mm * 3.779528 px/mm)
+    },
+    margin: [10, 10, 10, 10], // Top, Right, Bottom, Left margins in mm
+  });
 };

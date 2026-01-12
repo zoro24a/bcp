@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,11 +22,11 @@ import {
   DialogTrigger,
   DialogFooter,
   DialogClose,
-  DialogDescription, // Added DialogDescription
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Download } from "lucide-react";
+import { MoreHorizontal, Download, ArrowDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const TemplateManagement = () => {
   const [templates, setTemplates] =
@@ -52,9 +53,11 @@ const TemplateManagement = () => {
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [currentTemplate, setCurrentTemplate] = useState<
     Partial<CertificateTemplate>
-  >({ template_type: "html", content: "" }); // Default to HTML with empty content
+  >({ template_type: "html", content: "" });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchTemplatesData = async () => {
     setLoading(true);
@@ -75,18 +78,15 @@ const TemplateManagement = () => {
     let initialTemplate: Partial<CertificateTemplate>;
 
     if (mode === "create") {
-      // For create mode, explicitly set default values for an HTML template
       initialTemplate = { name: "", template_type: "html", content: "" };
-    } else { // mode === "edit"
-      // For edit mode, copy the existing template
-      initialTemplate = { ...template! }; // 'template' is guaranteed to be defined in 'edit' mode
-      // Ensure content is an empty string if template_type is html and content is undefined/null
+    } else {
+      initialTemplate = { ...template! };
       if (initialTemplate.template_type === "html" && (initialTemplate.content === undefined || initialTemplate.content === null)) {
         initialTemplate.content = "";
       }
     }
     setCurrentTemplate(initialTemplate);
-    setSelectedFile(null); // Clear selected file on dialog open
+    setSelectedFile(null);
     setIsDialogOpen(true);
   };
 
@@ -96,7 +96,6 @@ const TemplateManagement = () => {
       return;
     }
 
-    // Ensure content is an empty string if template_type is html and content is undefined/null
     const contentToSave = currentTemplate.template_type === "html" ? (currentTemplate.content || "") : undefined;
 
     if (currentTemplate.template_type === "html" && !contentToSave) {
@@ -113,7 +112,7 @@ const TemplateManagement = () => {
       const newTemplatePayload: Omit<CertificateTemplate, 'id' | 'created_at' | 'file_url'> = {
         name: currentTemplate.name,
         content: contentToSave,
-        template_type: currentTemplate.template_type!, // template_type is guaranteed to be set
+        template_type: currentTemplate.template_type!,
       };
       const created = await createTemplate(newTemplatePayload, selectedFile || undefined);
       if (created) {
@@ -130,7 +129,7 @@ const TemplateManagement = () => {
       const updated = await updateTemplate(currentTemplate.id, {
         name: currentTemplate.name,
         content: contentToSave,
-        template_type: currentTemplate.template_type!, // template_type is guaranteed to be set
+        template_type: currentTemplate.template_type!,
       }, selectedFile || undefined);
       if (updated) {
         showSuccess(`Template "${updated.name}" updated successfully.`);
@@ -158,6 +157,18 @@ const TemplateManagement = () => {
       setSelectedFile(e.target.files[0]);
     } else {
       setSelectedFile(null);
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
     }
   };
 
@@ -240,97 +251,114 @@ const TemplateManagement = () => {
       </CardContent>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>
-              {dialogMode === "create" ? "Create New" : "Edit"} Template
-            </DialogTitle>
-            <DialogDescription>
-              {dialogMode === "create" ? "Define a new certificate template, either HTML-based or by uploading a file." : "Modify an existing certificate template."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="template-name">Template Name</Label>
-              <Input
-                id="template-name"
-                value={currentTemplate.name || ""}
-                onChange={(e) =>
-                  setCurrentTemplate({
-                    ...currentTemplate,
-                    name: e.target.value,
-                  })
-                }
-                placeholder="e.g., Standard Bonafide"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="template-type">Template Type</Label>
-              <Select
-                value={currentTemplate.template_type || "html"}
-                onValueChange={(value: "html" | "pdf" | "word") => {
-                  setCurrentTemplate((prev) => ({
-                    ...prev,
-                    template_type: value,
-                    content: value === "html" ? (prev?.content || "") : undefined, // Clear content if not HTML
-                    file_url: value !== "html" ? prev?.file_url : undefined, // Clear file_url if HTML
-                  }));
-                  setSelectedFile(null); // Clear file when type changes
-                }}
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-6 pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>
+                  {dialogMode === "create" ? "Create New" : "Edit"} Template
+                </DialogTitle>
+                <DialogDescription>
+                  {dialogMode === "create" ? "Define a new certificate template." : "Modify an existing certificate template."}
+                </DialogDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={scrollToBottom}
+                className="flex items-center gap-2"
               >
-                <SelectTrigger id="template-type">
-                  <SelectValue placeholder="Select template type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="html">HTML Content</SelectItem>
-                  <SelectItem value="pdf">PDF Document</SelectItem>
-                  <SelectItem value="word">Word Document</SelectItem>
-                </SelectContent>
-              </Select>
+                <ArrowDown className="h-4 w-4" />
+                Scroll to Bottom
+              </Button>
             </div>
-
-            {currentTemplate.template_type === "html" ? (
+          </DialogHeader>
+          
+          <ScrollArea ref={scrollRef} className="flex-1 p-6 pt-2">
+            <div className="grid gap-6 pr-4">
               <div className="grid gap-2">
-                <Label htmlFor="template-content">Content</Label>
-                <RichTextEditor
-                  content={currentTemplate.content || ""} // Ensure content is always a string
-                  onChange={(content) =>
-                    setCurrentTemplate({ ...currentTemplate, content })
-                  }
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Use placeholders like {"{studentName}"}, {"{studentId}"}, etc.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-2">
-                <Label htmlFor="template-file">
-                  Upload {currentTemplate.template_type?.toUpperCase()} File
-                </Label>
+                <Label htmlFor="template-name">Template Name</Label>
                 <Input
-                  id="template-file"
-                  type="file"
-                  accept={currentTemplate.template_type === "pdf" ? ".pdf" : ".docx"}
-                  onChange={handleFileChange}
+                  id="template-name"
+                  value={currentTemplate.name || ""}
+                  onChange={(e) =>
+                    setCurrentTemplate({
+                      ...currentTemplate,
+                      name: e.target.value,
+                    })
+                  }
+                  placeholder="e.g., Standard Bonafide"
+                  required
                 />
-                {currentTemplate.file_url && !selectedFile && (
-                  <p className="text-sm text-muted-foreground">
-                    Current file:{" "}
-                    <a
-                      href={currentTemplate.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline"
-                    >
-                      View
-                    </a>
-                  </p>
-                )}
               </div>
-            )}
-          </div>
-          <DialogFooter>
+              <div className="grid gap-2">
+                <Label htmlFor="template-type">Template Type</Label>
+                <Select
+                  value={currentTemplate.template_type || "html"}
+                  onValueChange={(value: "html" | "pdf" | "word") => {
+                    setCurrentTemplate((prev) => ({
+                      ...prev,
+                      template_type: value,
+                      content: value === "html" ? (prev?.content || "") : undefined,
+                      file_url: value !== "html" ? prev?.file_url : undefined,
+                    }));
+                    setSelectedFile(null);
+                  }}
+                >
+                  <SelectTrigger id="template-type">
+                    <SelectValue placeholder="Select template type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="html">HTML Content</SelectItem>
+                    <SelectItem value="pdf">PDF Document</SelectItem>
+                    <SelectItem value="word">Word Document</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {currentTemplate.template_type === "html" ? (
+                <div className="grid gap-2">
+                  <Label htmlFor="template-content">Content</Label>
+                  <RichTextEditor
+                    content={currentTemplate.content || ""}
+                    onChange={(content) =>
+                      setCurrentTemplate({ ...currentTemplate, content })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Use placeholders like {"{studentName}"}, {"{studentId}"}, etc.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  <Label htmlFor="template-file">
+                    Upload {currentTemplate.template_type?.toUpperCase()} File
+                  </Label>
+                  <Input
+                    id="template-file"
+                    type="file"
+                    accept={currentTemplate.template_type === "pdf" ? ".pdf" : ".docx"}
+                    onChange={handleFileChange}
+                  />
+                  {currentTemplate.file_url && !selectedFile && (
+                    <p className="text-sm text-muted-foreground">
+                      Current file:{" "}
+                      <a
+                        href={currentTemplate.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline"
+                      >
+                        View
+                      </a>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="p-6 border-t bg-muted/20">
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoreHorizontal, Download, ArrowDown } from "lucide-react";
+import { MoreHorizontal, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,8 +56,6 @@ const TemplateManagement = () => {
   >({ template_type: "html", content: "" });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchTemplatesData = async () => {
     setLoading(true);
@@ -160,18 +158,6 @@ const TemplateManagement = () => {
     }
   };
 
-  const scrollToBottom = () => {
-    if (scrollRef.current) {
-      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollContainer) {
-        scrollContainer.scrollTo({
-          top: scrollContainer.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-    }
-  };
-
   if (loading) {
     return (
       <Card>
@@ -253,28 +239,15 @@ const TemplateManagement = () => {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="p-6 pb-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle>
-                  {dialogMode === "create" ? "Create New" : "Edit"} Template
-                </DialogTitle>
-                <DialogDescription>
-                  {dialogMode === "create" ? "Define a new certificate template." : "Modify an existing certificate template."}
-                </DialogDescription>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={scrollToBottom}
-                className="flex items-center gap-2"
-              >
-                <ArrowDown className="h-4 w-4" />
-                Scroll to Bottom
-              </Button>
-            </div>
+            <DialogTitle>
+              {dialogMode === "create" ? "Create New" : "Edit"} Template
+            </DialogTitle>
+            <DialogDescription>
+              {dialogMode === "create" ? "Define a new certificate template." : "Modify an existing certificate template."}
+            </DialogDescription>
           </DialogHeader>
           
-          <ScrollArea ref={scrollRef} className="flex-1 p-6 pt-2">
+          <ScrollArea className="flex-1 p-6 pt-2">
             <div className="grid gap-6 pr-4">
               <div className="grid gap-2">
                 <Label htmlFor="template-name">Template Name</Label>

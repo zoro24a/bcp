@@ -70,22 +70,10 @@ const MyRequests = () => {
       return;
     }
 
-    if (template.template_type === "html") {
-      const htmlContent = getCertificateHtml(request, student, template, true);
-      const fileName = `Bonafide-${student.register_number}.pdf`;
-      await generatePdf(htmlContent, fileName);
-    } else if (template.file_url) {
-      // For PDF or Word templates, directly download the file
-      const link = document.createElement('a');
-      link.href = template.file_url;
-      link.download = `${template.name}-${student.register_number}.${template.template_type}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      showError("No file URL found for this template type.");
-      return;
-    }
+    // All templates are now HTML, so always generate PDF from HTML content
+    const htmlContent = getCertificateHtml(request, student, template, true);
+    const fileName = `Bonafide-${student.register_number}.pdf`;
+    await generatePdf(htmlContent, fileName);
   };
 
   if (loading) {

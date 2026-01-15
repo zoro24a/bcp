@@ -27,6 +27,7 @@ export const getCertificateHtml = (
 
   console.log("[getCertificateHtml] Raw template content from DB:", template.content);
 
+  // Ensure gender defaults to 'Male' if not explicitly set
   const isFemale = student.gender === "Female";
   
   // Pronoun and salutation mappings

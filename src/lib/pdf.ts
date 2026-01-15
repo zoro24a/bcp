@@ -93,20 +93,13 @@ export const getCertificateHtml = (
  */
 export const generatePdf = async (htmlContent: string, fileName: string) => {
   console.log("[generatePdf] Starting PDF generation for file:", fileName);
-  console.log("[generatePdf] HTML content length:", htmlContent.length); // Check if content is empty
+  console.log("[generatePdf] HTML content length:", htmlContent.length);
 
   if (!htmlContent || htmlContent.trim() === "") {
     console.error("[generatePdf] HTML content is empty, cannot generate PDF.");
     throw new Error("HTML content is empty, cannot generate PDF.");
   }
 
-  const pdf = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: "a4",
-  });
-
-  // Create a temporary div to render the HTML content
   const tempDiv = document.createElement("div");
   tempDiv.style.width = "210mm"; // A4 width
   tempDiv.style.padding = "20mm"; // Padding for margins
@@ -120,20 +113,46 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
   // Wait briefly for rendering to complete
   await new Promise(r => setTimeout(r, 300));
 
-  // Use jsPDF's html method for better integration
-  await pdf.html(tempDiv, {
-    callback: function (doc) {
-      doc.save(fileName);
-      document.body.removeChild(tempDiv); // Clean up the temporary element
-      console.log("[generatePdf] PDF generated and downloaded successfully.");
-    },
-    x: 0,
-    y: 0,
-    html2canvas: {
-      scale: 0.75, // Adjusted scale for better fit on A4
-      useCORS: true, // Important if images are from external sources
-      logging: true, // Enable logging for html2canvas
-    },
-    margin: [10, 10, 10, 10], // Top, Right, Bottom, Left margins in mm
-  });
+  try {
+    const canvas = await html2canvas(tempDiv, {
+      scale: 2, // Increase scale for better resolution in PDF
+      useCORS: true,
+      logging: true,
+      windowWidth: tempDiv.offsetWidth, // Pass explicit width
+      windowHeight: tempDiv.offsetHeight, // Pass explicit height
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const imgWidth = 210; // A4 width in mm
+    const pageHeight = 297; // A4 height in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+
+    let position = 0;
+
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(fileName);
+    console.log("[generatePdf] PDF generated and downloaded successfully.");
+
+  } catch (error) {
+    console.error("[generatePdf] Error during html2canvas or PDF generation:", error);
+    throw new Error("Failed to generate PDF: " + (error as Error).message);
+  } finally {
+    document.body.removeChild(tempDiv); // Clean up the temporary element
+  }
 };

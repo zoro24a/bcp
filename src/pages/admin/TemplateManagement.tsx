@@ -39,6 +39,7 @@ import RichTextEditor from "@/components/shared/RichTextEditor";
 import { createTemplate, deleteTemplate, fetchTemplates, updateTemplate } from "@/data/appData";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { unescapeHtml } from "@/lib/utils"; // Import unescapeHtml
 
 const TemplateManagement = () => {
   const [templates, setTemplates] =
@@ -72,9 +73,11 @@ const TemplateManagement = () => {
       initialTemplate = { name: "", template_type: "html", content: "" }; // Always HTML
     } else {
       initialTemplate = { ...template! };
-      // Ensure content is a string for HTML templates
+      // Ensure content is a string for HTML templates and unescape it
       if (initialTemplate.template_type === "html" && (initialTemplate.content === undefined || initialTemplate.content === null)) {
         initialTemplate.content = "";
+      } else if (initialTemplate.template_type === "html" && initialTemplate.content) {
+        initialTemplate.content = unescapeHtml(initialTemplate.content); // Unescape here
       }
     }
     setCurrentTemplate(initialTemplate);

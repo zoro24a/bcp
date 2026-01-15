@@ -137,3 +137,13 @@ export const getSemesterDateRange = (
     to: toDate.toISOString().split("T")[0],
   };
 };
+
+/**
+ * Unescapes HTML entities in a string.
+ * @param html The HTML string with escaped entities.
+ * @returns The unescaped HTML string.
+ */
+export const unescapeHtml = (html: string): string => {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return doc.documentElement.textContent || "";
+};

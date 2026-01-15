@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas"; // Keep this import, jsPDF.html might use it internally
 import { BonafideRequest, CertificateTemplate, StudentDetails } from "./types";
+import { unescapeHtml } from "./utils"; // Import unescapeHtml
 
 /**
  * Generates the final HTML content for a certificate by populating a template with data.
@@ -27,6 +28,10 @@ export const getCertificateHtml = (
 
   console.log("[getCertificateHtml] Raw template content from DB:", template.content);
 
+  // Unescape the HTML content from the database before processing
+  let content = unescapeHtml(template.content || "");
+  console.log("[getCertificateHtml] Content after initial unescaping:", content);
+
   // Ensure gender defaults to 'Male' if not explicitly set
   const isFemale = student.gender === "Female";
   
@@ -38,8 +43,6 @@ export const getCertificateHtml = (
     hisHer: isFemale ? "her" : "his",
     himHer: isFemale ? "her" : "him"
   };
-
-  let content = template.content || "";
 
   // Replace standard placeholders
   content = content

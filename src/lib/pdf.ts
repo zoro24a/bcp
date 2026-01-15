@@ -1,7 +1,6 @@
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas"; // Keep this import, jsPDF.html might use it internally
+import html2canvas from "html2canvas";
 import { BonafideRequest, CertificateTemplate, StudentDetails } from "./types";
-// Removed import { unescapeHtml } from "./utils"; // No longer needed here
 
 /**
  * Generates the final HTML content for a certificate by populating a template with data.
@@ -106,11 +105,17 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
   tempDiv.style.width = "210mm"; // A4 width
   tempDiv.style.padding = "20mm"; // Padding for margins
   tempDiv.style.boxSizing = "border-box"; // Include padding in width
-  tempDiv.style.position = "absolute";
-  tempDiv.style.left = "-9999px"; // Hide it off-screen
+  tempDiv.style.position = "fixed"; // Use fixed position
+  tempDiv.style.top = "0";
+  tempDiv.style.left = "0";
+  tempDiv.style.zIndex = "-1"; // Place it behind other content
+  tempDiv.style.opacity = "0"; // Make it invisible
   tempDiv.style.backgroundColor = "white"; // Ensure white background for PDF
   tempDiv.innerHTML = `<div class="prose max-w-none">${htmlContent}</div>`; // Apply prose for styling
   document.body.appendChild(tempDiv);
+
+  // Wait briefly for rendering to complete
+  await new Promise(r => setTimeout(r, 300)); // As suggested by the user
 
   // Use jsPDF's html method for better integration
   await pdf.html(tempDiv, {
@@ -122,11 +127,9 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
     x: 0,
     y: 0,
     html2canvas: {
-      scale: 0.75, // Adjust scale for better fit on A4, might need tweaking
+      scale: 0.8, // Adjusted scale as per user suggestion
       useCORS: true, // Important if images are from external sources
       logging: true, // Enable logging for html2canvas
-      // windowWidth: 210 * 3.779528, // A4 width in pixels at 96dpi (210mm * 3.779528 px/mm)
-      // windowHeight: 297 * 3.779528, // A4 height in pixels at 96dpi (297mm * 3.779528 px/mm)
     },
     margin: [10, 10, 10, 10], // Top, Right, Bottom, Left margins in mm
   });

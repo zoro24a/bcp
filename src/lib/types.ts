@@ -27,9 +27,9 @@ export interface BonafideRequest {
 export interface CertificateTemplate {
   id: string; // UUID from Supabase
   name: string;
-  content?: string; // Optional for file-based templates
-  template_type: "html" | "pdf" | "word"; // New: 'html', 'pdf', or 'word'
-  file_url?: string; // New: URL to the uploaded PDF/Word file
+  content: string; // Now mandatory for HTML templates
+  template_type: "html"; // Restricted to 'html' only
+  file_url?: string; // Still optional, but won't be used for new templates
   created_at?: string;
 }
 

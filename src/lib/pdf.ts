@@ -93,6 +93,12 @@ export const getCertificateHtml = (
  */
 export const generatePdf = async (htmlContent: string, fileName: string) => {
   console.log("[generatePdf] Starting PDF generation for file:", fileName);
+  console.log("[generatePdf] HTML content length:", htmlContent.length); // Check if content is empty
+
+  if (!htmlContent || htmlContent.trim() === "") {
+    console.error("[generatePdf] HTML content is empty, cannot generate PDF.");
+    throw new Error("HTML content is empty, cannot generate PDF.");
+  }
 
   const pdf = new jsPDF({
     orientation: "portrait",
@@ -105,17 +111,14 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
   tempDiv.style.width = "210mm"; // A4 width
   tempDiv.style.padding = "20mm"; // Padding for margins
   tempDiv.style.boxSizing = "border-box"; // Include padding in width
-  tempDiv.style.position = "fixed"; // Use fixed position
-  tempDiv.style.top = "0";
-  tempDiv.style.left = "0";
-  tempDiv.style.zIndex = "-1"; // Place it behind other content
-  tempDiv.style.opacity = "0"; // Make it invisible
+  tempDiv.style.position = "absolute"; // Position absolutely
+  tempDiv.style.left = "-9999px"; // Move far off-screen
   tempDiv.style.backgroundColor = "white"; // Ensure white background for PDF
   tempDiv.innerHTML = `<div class="prose max-w-none">${htmlContent}</div>`; // Apply prose for styling
   document.body.appendChild(tempDiv);
 
   // Wait briefly for rendering to complete
-  await new Promise(r => setTimeout(r, 300)); // As suggested by the user
+  await new Promise(r => setTimeout(r, 300));
 
   // Use jsPDF's html method for better integration
   await pdf.html(tempDiv, {
@@ -127,7 +130,7 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
     x: 0,
     y: 0,
     html2canvas: {
-      scale: 0.8, // Adjusted scale as per user suggestion
+      scale: 0.75, // Adjusted scale for better fit on A4
       useCORS: true, // Important if images are from external sources
       logging: true, // Enable logging for html2canvas
     },

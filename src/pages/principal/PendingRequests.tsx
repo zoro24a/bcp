@@ -94,7 +94,10 @@ const PrincipalPendingRequests = () => {
   }, [user]);
 
   const handleApproveAndDownload = async () => {
-    if (!selectedRequest) return;
+    if (!selectedRequest) {
+      showError("No request selected for approval.");
+      return;
+    }
 
     const student = previewStudentDetails; // Use the details already verified in preview
     
@@ -117,27 +120,24 @@ const PrincipalPendingRequests = () => {
       return;
     }
 
+    // Add logging here to confirm template content and student details
+    console.log("[PrincipalPendingRequests] Approving request:", selectedRequest.id);
+    console.log("[PrincipalPendingRequests] Student details for PDF:", student);
+    console.log("[PrincipalPendingRequests] Template for PDF:", template);
+    console.log("[PrincipalPendingRequests] Template content for PDF:", template.content);
+
+
     try {
-      if (template.template_type === "html") {
-        const htmlContent = getCertificateHtml(
-          selectedRequest,
-          student,
-          template,
-          addSignature
-        );
-        const fileName = `Bonafide-${student.register_number}.pdf`;
-        await generatePdf(htmlContent, fileName);
-      } else if (template.file_url) {
-        const link = document.createElement('a');
-        link.href = template.file_url;
-        link.download = `${template.name}-${student.register_number}.${template.template_type}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        showError("Error: The template is missing its source file or content.");
-        return;
-      }
+      // Since template_type is now strictly "html", we can simplify this.
+      const htmlContent = getCertificateHtml(
+        selectedRequest,
+        student,
+        template,
+        addSignature
+      );
+      console.log("[PrincipalPendingRequests] Final HTML content for PDF generation:", htmlContent); // Debugging
+      const fileName = `Bonafide-${student.register_number}.pdf`;
+      await generatePdf(htmlContent, fileName);
 
       const updated = await updateRequestStatus(selectedRequest.id, "Approved");
       if (updated) {
@@ -301,35 +301,50 @@ const PrincipalPendingRequests = () => {
             {selectedRequest && (
               <div className="py-4">
                 <h3 className="font-semibold mb-2">Certificate Preview</h3>
-                {templates.find((t) => t.id === selectedRequest.template_id)?.template_type === "html" ? (
-                  <>
-                    <div
-                      className="p-4 border rounded-md bg-muted prose dark:prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{
-                        __html: getCertificateHtml(
-                          selectedRequest,
-                          previewStudentDetails,
-                          templates.find(
-                            (t) => t.id === selectedRequest.template_id
-                          ),
-                          addSignature
-                        ),
-                      }}
-                    />
-                    <div className="flex items-center space-x-2 mt-4">
-                      <Checkbox
-                        id="e-sign"
-                        checked={addSignature}
-                        onCheckedChange={(checked) =>
-                          setAddSignature(checked as boolean)
-                        }
-                      />
-                      <Label htmlFor="e-sign">Add E-Signature</Label>
-                    </div>
-                  </>
+                {selectedRequest.template_id && previewStudentDetails ? (
+                  (() => {
+                    const template = templates.find((t) => t.id === selectedRequest.template_id);
+                    if (!template) {
+                      return <p className="text-destructive">Error: Assigned template not found.</p>;
+                    }
+                    if (template.template_type === "html") {
+                      const htmlContent = getCertificateHtml(
+                        selectedRequest,
+                        previewStudentDetails,
+                        template,
+                        addSignature
+                      );
+                      console.log("[PrincipalPendingRequests] Preview HTML content:", htmlContent); // Debugging
+                      return (
+                        <>
+                          <div
+                            className="p-4 border rounded-md bg-muted prose dark:prose-invert max-w-none"
+                            dangerouslySetInnerHTML={{ __html: htmlContent }}
+                          />
+                          <div className="flex items-center space-x-2 mt-4">
+                            <Checkbox
+                              id="e-sign"
+                              checked={addSignature}
+                              onCheckedChange={(checked) =>
+                                setAddSignature(checked as boolean)
+                              }
+                            />
+                            <Label htmlFor="e-sign">Add E-Signature</Label>
+                          </div>
+                        </>
+                      );
+                    } else {
+                      // This branch should ideally not be hit if template_type is strictly "html"
+                      return (
+                        <p className="text-muted-foreground">
+                          This is a file-based template ({template.template_type?.toUpperCase()}). It will be downloaded directly.
+                        </p>
+                      );
+                    }
+                  })()
                 ) : (
-                  <p className="text-muted-foreground">
-                    This is a file-based template ({templates.find((t) => t.id === selectedRequest.template_id)?.template_type?.toUpperCase()}). It will be downloaded directly.
+                  <p className="text-destructive">
+                    Error: Missing template ID or student details for preview.
                   </p>
                 )}
               </div>

@@ -62,18 +62,36 @@ const MyRequests = () => {
   }, [user]);
 
   const handleDownload = async (request: BonafideRequest) => {
+    // Add logging here
+    console.log("[MyRequests] Initiating download for request:", request.id);
+    console.log("[MyRequests] Request template ID:", request.template_id);
+
+    if (!request.template_id) {
+      showError("Error: No certificate template was assigned to this request.");
+      return;
+    }
+
     const student: StudentDetails | null = await fetchStudentDetails(request.student_id);
     const template: CertificateTemplate | undefined = templates.find((t) => t.id === request.template_id);
 
     if (!student || !template) {
-      showError("Could not fetch student or template for download.");
+      showError("Could not fetch student or template for download. Please ensure the template exists and student details are complete.");
       return;
     }
 
-    // All templates are now HTML, so always generate PDF from HTML content
-    const htmlContent = getCertificateHtml(request, student, template, true);
-    const fileName = `Bonafide-${student.register_number}.pdf`;
-    await generatePdf(htmlContent, fileName);
+    console.log("[MyRequests] Student details for PDF:", student);
+    console.log("[MyRequests] Template for PDF:", template);
+    console.log("[MyRequests] Template content for PDF:", template.content);
+
+    try {
+      const htmlContent = getCertificateHtml(request, student, template, true); // Always add signature for student download
+      console.log("[MyRequests] Final HTML content for PDF generation:", htmlContent); // Debugging
+      const fileName = `Bonafide-${student.register_number}.pdf`;
+      await generatePdf(htmlContent, fileName);
+    } catch (err: any) {
+      console.error("Download generation error:", err);
+      showError("An error occurred while generating the certificate: " + err.message);
+    }
   };
 
   if (loading) {

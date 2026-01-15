@@ -25,6 +25,8 @@ export const getCertificateHtml = (
     return "<p>Error: Student details not found.</p>";
   }
 
+  console.log("[getCertificateHtml] Raw template content from DB:", template.content);
+
   const isFemale = student.gender === "Female";
   
   // Pronoun and salutation mappings
@@ -52,6 +54,8 @@ export const getCertificateHtml = (
     .replace(/{currentSemester}/g, student.current_semester?.toString() || 'N/A')
     .replace(/{date}/g, new Date().toLocaleDateString('en-GB'));
 
+  console.log("[getCertificateHtml] Content after standard replacements:", content);
+
   // Replace automatic gender markers
   content = content
     .replace(/Mr\/Ms/g, genderMap.salutation)
@@ -67,6 +71,8 @@ export const getCertificateHtml = (
     .replace(/{parentRelation}/g, genderMap.parentRelation)
     .replace(/{heShe}/g, genderMap.heShe)
     .replace(/{hisHer}/g, genderMap.hisHer);
+
+  console.log("[getCertificateHtml] Content after gender-specific replacements:", content);
 
   if (addSignature) {
     content +=

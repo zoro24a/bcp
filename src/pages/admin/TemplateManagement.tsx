@@ -35,11 +35,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CertificateTemplate } from "@/lib/types";
 import { showSuccess, showError } from "@/utils/toast";
-import RichTextEditor from "@/components/shared/RichTextEditor";
+// Removed RichTextEditor import
 import { createTemplate, deleteTemplate, fetchTemplates, updateTemplate } from "@/data/appData";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { unescapeHtml } from "@/lib/utils"; // Import unescapeHtml
+import { Textarea } from "@/components/ui/textarea"; // Import Textarea
 
 const TemplateManagement = () => {
   const [templates, setTemplates] =
@@ -73,11 +73,9 @@ const TemplateManagement = () => {
       initialTemplate = { name: "", template_type: "html", content: "" }; // Always HTML
     } else {
       initialTemplate = { ...template! };
-      // Ensure content is a string for HTML templates and unescape it
+      // No unescaping needed here, as content will be stored as raw HTML
       if (initialTemplate.template_type === "html" && (initialTemplate.content === undefined || initialTemplate.content === null)) {
         initialTemplate.content = "";
-      } else if (initialTemplate.template_type === "html" && initialTemplate.content) {
-        initialTemplate.content = unescapeHtml(initialTemplate.content); // Unescape here
       }
     }
     setCurrentTemplate(initialTemplate);
@@ -104,7 +102,7 @@ const TemplateManagement = () => {
         content: contentToSave,
         template_type: "html", // Always HTML
       };
-      const created = await createTemplate(newTemplatePayload); // Removed file parameter
+      const created = await createTemplate(newTemplatePayload);
       if (created) {
         showSuccess(`Template "${created.name}" created successfully.`);
         fetchTemplatesData();
@@ -120,7 +118,7 @@ const TemplateManagement = () => {
         name: currentTemplate.name,
         content: contentToSave,
         template_type: "html", // Always HTML
-      }); // Removed file parameter
+      });
       if (updated) {
         showSuccess(`Template "${updated.name}" updated successfully.`);
         fetchTemplatesData();
@@ -228,7 +226,7 @@ const TemplateManagement = () => {
               {dialogMode === "create" ? "Create New" : "Edit"} Template
             </DialogTitle>
             <DialogDescription>
-              {dialogMode === "create" ? "Define a new certificate template using HTML content." : "Modify an existing certificate template using HTML content."}
+              {dialogMode === "create" ? "Define a new certificate template using raw HTML content." : "Modify an existing certificate template using raw HTML content."}
             </DialogDescription>
           </DialogHeader>
           
@@ -249,14 +247,17 @@ const TemplateManagement = () => {
                   required
                 />
               </div>
-              {/* Removed Template Type selection as it's always HTML now */}
               <div className="grid gap-2">
-                <Label htmlFor="template-content">Content</Label>
-                <RichTextEditor
-                  content={currentTemplate.content || ""}
-                  onChange={(content) =>
-                    setCurrentTemplate({ ...currentTemplate, content })
+                <Label htmlFor="template-content">HTML Content</Label>
+                <Textarea
+                  id="template-content"
+                  value={currentTemplate.content || ""}
+                  onChange={(e) =>
+                    setCurrentTemplate({ ...currentTemplate, content: e.target.value })
                   }
+                  placeholder={`<div style="font-family:'Times New Roman', serif;">...</div>`}
+                  rows={15}
+                  className="font-mono text-sm"
                 />
                 <div className="mt-4 p-4 bg-muted rounded-md space-y-2">
                   <p className="text-sm font-semibold">Available Dynamic Placeholders:</p>

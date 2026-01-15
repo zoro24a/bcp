@@ -109,7 +109,8 @@ const TutorPendingRequests = () => {
         }
 
         const fetchedTemplates = await fetchTemplates();
-        setTemplates(fetchedTemplates);
+        // Filter templates to only show HTML type
+        setTemplates(fetchedTemplates.filter(t => t.template_type === "html"));
       } catch (error) {
         console.error("TutorPendingRequests fetch error:", error);
         showError("Failed to load requests due to a data error.");

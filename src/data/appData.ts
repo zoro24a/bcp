@@ -439,31 +439,14 @@ export const updateBatch = async (batchId: string, updates: Partial<Batch>): Pro
 };
 
 export const createTemplate = async (
-  newTemplate: Omit<CertificateTemplate, 'id' | 'created_at' | 'file_url'>,
-  file?: File
+  newTemplate: Omit<CertificateTemplate, 'id' | 'created_at' | 'file_url'> // Removed file parameter
 ): Promise<CertificateTemplate | null> => {
-  let file_url: string | undefined;
-
-  if (file) {
-    const filePath = `public/${Date.now()}-${file.name}`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('certificate-templates')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error("Error uploading file:", uploadError);
-      showError("Error uploading file: " + uploadError.message);
-      return null;
-    }
-    file_url = supabase.storage.from('certificate-templates').getPublicUrl(filePath).data.publicUrl;
-  }
-
+  // Template type is now always 'html', and content is directly stored.
+  // No file upload logic needed.
   const { data, error } = await supabase.from("templates").insert({
     ...newTemplate,
-    file_url: file_url,
+    template_type: "html", // Ensure it's always HTML
+    file_url: null, // Explicitly set file_url to null for HTML templates
   }).select().single();
 
   if (error) {
@@ -476,67 +459,15 @@ export const createTemplate = async (
 
 export const updateTemplate = async (
   templateId: string,
-  updates: Partial<Omit<CertificateTemplate, 'created_at' | 'file_url'>>,
-  file?: File
+  updates: Partial<Omit<CertificateTemplate, 'created_at' | 'file_url'>> // Removed file parameter
 ): Promise<CertificateTemplate | null> => {
-  let file_url: string | null | undefined;
-
-  // If a new file is provided, upload it
-  if (file) {
-    // First, get the existing template to check for an old file to delete
-    const { data: existingTemplate, error: fetchError } = await supabase
-      .from('templates')
-      .select('file_url')
-      .eq('id', templateId)
-      .single();
-
-    if (fetchError) {
-      console.error("Error fetching existing template for file update:", fetchError);
-      showError("Failed to update template file: " + fetchError.message);
-      return null;
-    }
-
-    // If an old file exists, delete it
-    if (existingTemplate?.file_url) {
-      const oldFilePath = existingTemplate.file_url.split('/public/')[1]; // Extract path after /public/
-      if (oldFilePath) {
-        const { error: deleteFileError } = await supabase.storage
-          .from('certificate-templates')
-          .remove([oldFilePath]);
-        if (deleteFileError) {
-          console.warn("Error deleting old file:", deleteFileError.message);
-          // Don't block the update if old file deletion fails
-        }
-      }
-    }
-
-    const filePath = `public/${Date.now()}-${file.name}`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('certificate-templates')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-      });
-
-    if (uploadData) {
-      file_url = supabase.storage.from('certificate-templates').getPublicUrl(filePath).data.publicUrl;
-    } else if (uploadError) {
-      showError("Error uploading new file: " + uploadError.message);
-      console.error("Error uploading new file:", uploadError);
-      return null;
-    }
-  } else if (updates.template_type === 'html') {
-    // If switching to HTML and no new file is provided, explicitly clear file_url
-    file_url = null;
-  }
-  // If template_type is 'pdf' or 'word' and no new file is provided,
-  // file_url remains undefined, meaning it won't be updated in the DB,
-  // thus retaining the existing file_url.
-
-  const updatePayload: Partial<CertificateTemplate> = { ...updates };
-  if (file_url !== undefined) { // Only include file_url in payload if it was explicitly set (to a new URL or null)
-    updatePayload.file_url = file_url;
-  }
+  // No file upload/deletion logic needed.
+  // Ensure template_type is always 'html' and file_url is null.
+  const updatePayload: Partial<CertificateTemplate> = {
+    ...updates,
+    template_type: "html", // Ensure it's always HTML
+    file_url: null, // Explicitly set file_url to null for HTML templates
+  };
 
   const { data, error } = await supabase.from("templates").update(updatePayload).eq("id", templateId).select().single();
   if (error) {
@@ -548,33 +479,7 @@ export const updateTemplate = async (
 };
 
 export const deleteTemplate = async (templateId: string): Promise<boolean> => {
-  // First, fetch the template to get the file_url if it exists
-  const { data: template, error: fetchError } = await supabase
-    .from('templates')
-    .select('file_url')
-    .eq('id', templateId)
-    .single();
-
-  if (fetchError) {
-    console.error("Error fetching template for deletion:", fetchError);
-    showError("Failed to delete template: " + fetchError.message);
-    return false;
-  }
-
-  // If a file is associated, delete it from storage
-  if (template?.file_url) {
-    const filePath = template.file_url.split('/public/')[1]; // Extract path after /public/
-    if (filePath) {
-      const { error: deleteFileError } = await supabase.storage
-        .from('certificate-templates')
-        .remove([filePath]);
-      if (deleteFileError) {
-        console.warn("Error deleting associated file from storage:", deleteFileError.message);
-        // Continue with database deletion even if file deletion fails
-      }
-    }
-  }
-
+  // No file deletion from storage needed as templates are now HTML content only.
   const { error } = await supabase.from("templates").delete().eq("id", templateId);
   if (error) {
     console.error("Error deleting template from DB:", error);

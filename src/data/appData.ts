@@ -640,10 +640,11 @@ export const createStudent = async (
       .from("profiles")
       .select("*")
       .eq("id", newUser.id)
-      .single();
+      .maybeSingle(); // Changed to maybeSingle()
 
     if (profileFetchError || !newProfile) {
       console.error("Error fetching newly created student profile:", profileFetchError);
+      showError("Failed to retrieve new student profile after creation: " + profileFetchError?.message);
       // Rollback: delete the auth user if profile creation failed
       await supabase.functions.invoke('manage-users', {
         body: JSON.stringify({
@@ -734,7 +735,7 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
             const parsedBody = JSON.parse(responseBody);
             showError("Failed to create tutor user: " + (parsedBody.error || authError.message));
         } catch (e) {
-            showError("Failed to create tutor user: " + authError.message);
+            showError("Failed to create tutor user: " + e.message);
         }
     } else {
         showError("Failed to create tutor user: " + authError.message);
@@ -750,7 +751,7 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
       .from("profiles")
       .select("*")
       .eq("id", newUser.id)
-      .single();
+      .maybeSingle(); // Changed to maybeSingle()
 
     if (profileFetchError || !newProfile) {
       console.error("Error fetching newly created tutor profile:", profileFetchError);
@@ -871,7 +872,7 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
       .from("profiles")
       .select("*")
       .eq("id", newUser.id)
-      .single();
+      .maybeSingle(); // Changed to maybeSingle()
 
     if (profileFetchError || !newProfile) {
       console.error("Error fetching newly created HOD profile:", profileFetchError);

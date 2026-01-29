@@ -353,6 +353,16 @@ export const fetchDepartments = async (): Promise<Department[]> => {
   return data as Department[];
 };
 
+// New function: Fetch department by name
+export const fetchDepartmentByName = async (name: string): Promise<Department | null> => {
+  const { data, error } = await supabase.from("departments").select("*").eq("name", name).maybeSingle();
+  if (error) {
+    console.error("Error fetching department by name:", error);
+    return null;
+  }
+  return data as Department | null;
+};
+
 export const fetchBatches = async (): Promise<Batch[]> => {
   const { data, error } = await supabase.from("batches").select(`
     *,
@@ -364,6 +374,57 @@ export const fetchBatches = async (): Promise<Batch[]> => {
   }
   return data as Batch[];
 };
+
+// New function: Fetch batch by name, section, and department ID
+export const fetchBatchByNameAndDepartment = async (
+  batchName: string,
+  section: string | null,
+  departmentId: string
+): Promise<Batch | null> => {
+  let query = supabase.from("batches")
+    .select("*")
+    .eq("name", batchName)
+    .eq("department_id", departmentId);
+
+  if (section === null || section === "No Section") {
+    query = query.is("section", null);
+  } else {
+    query = query.eq("section", section);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    console.error("Error fetching batch by name and department:", error);
+    return null;
+  }
+  return data as Batch | null;
+};
+
+// New function: Fetch profile by first name, last name, and role
+export const fetchProfileByNameAndRole = async (
+  firstName: string,
+  lastName: string | undefined,
+  role: 'tutor' | 'hod'
+): Promise<Profile | null> => {
+  let query = supabase.from("profiles")
+    .select("id, first_name, last_name")
+    .eq("first_name", firstName)
+    .eq("role", role);
+
+  if (lastName) {
+    query = query.eq("last_name", lastName);
+  } else {
+    query = query.is("last_name", null);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    console.error(`Error fetching ${role} profile by name:`, error);
+    return null;
+  }
+  return data as Profile | null;
+};
+
 
 export const fetchTemplates = async (): Promise<CertificateTemplate[]> => {
   const { data, error } = await supabase.from("templates").select("*");
@@ -461,7 +522,7 @@ export const updateTemplate = async (
   templateId: string,
   updates: Partial<Omit<CertificateTemplate, 'created_at' | 'file_url'>> // Removed file parameter
 ): Promise<CertificateTemplate | null> => {
-  // No file upload/deletion logic needed.
+  // No file deletion logic needed.
   // Ensure template_type is always 'html' and file_url is null.
   const updatePayload: Partial<CertificateTemplate> = {
     ...updates,
@@ -738,7 +799,7 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
             const parsedBody = JSON.parse(responseBody);
             showError("Failed to update user password: " + (parsedBody.error || error.message));
         } catch (e) {
-            showError("Failed to update user password: " + error.message);
+            showError("Failed to update user password: " + e.message);
         }
     } else {
         showError("Failed to update user password: " + error.message);
@@ -794,7 +855,7 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
             const parsedBody = JSON.parse(responseBody);
             showError("Failed to create HOD user: " + (parsedBody.error || authError.message));
         } catch (e) {
-            showError("Failed to create HOD user: " + authError.message);
+            showError("Failed to create HOD user: " + e.message);
         }
     } else {
         showError("Failed to create HOD user: " + authError.message);

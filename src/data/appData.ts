@@ -550,10 +550,10 @@ export const deleteTemplate = async (templateId: string): Promise<boolean> => {
   return true;
 };
 
-// Utility function to remove undefined properties from an object
+// Utility function to remove undefined and empty string properties from an object
 const cleanObject = <T extends object>(obj: T): Partial<T> => {
   return Object.fromEntries(
-    Object.entries(obj).filter(([, value]) => value !== undefined)
+    Object.entries(obj).filter(([, value]) => value !== undefined && value !== "")
   ) as Partial<T>;
 };
 

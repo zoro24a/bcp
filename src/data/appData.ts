@@ -634,6 +634,9 @@ export const createStudent = async (
 
   const newUser = (authData as any)?.user; // Cast to any to access user property
   if (newUser) {
+    // Add a small delay to allow the trigger to complete
+    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+
     // The trigger `handle_new_user` should have created the profile.
     // We need to fetch it to get the complete Profile object and ensure it exists.
     const { data: newProfile, error: profileFetchError } = await supabase
@@ -643,8 +646,8 @@ export const createStudent = async (
       .maybeSingle(); // Changed to maybeSingle()
 
     if (profileFetchError || !newProfile) {
-      console.error("Error fetching newly created student profile:", profileFetchError);
-      showError("Failed to retrieve new student profile after creation: " + profileFetchError?.message);
+      console.error("Error fetching newly created student profile:", profileFetchError || "Profile not found after trigger.");
+      showError("Failed to retrieve new student profile after creation. Please try again or contact support.");
       // Rollback: delete the auth user if profile creation failed
       await supabase.functions.invoke('manage-users', {
         body: JSON.stringify({
@@ -745,6 +748,9 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
 
   const newUser = (authData as any)?.user;
   if (newUser) {
+    // Add a small delay to allow the trigger to complete
+    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+
     // The trigger `handle_new_user` should have created the profile.
     // We need to fetch it to return the complete Profile object.
     const { data: newProfile, error: profileFetchError } = await supabase
@@ -754,8 +760,8 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
       .maybeSingle(); // Changed to maybeSingle()
 
     if (profileFetchError || !newProfile) {
-      console.error("Error fetching newly created tutor profile:", profileFetchError);
-      showError("Failed to retrieve new tutor profile: " + profileFetchError?.message);
+      console.error("Error fetching newly created tutor profile:", profileFetchError || "Profile not found after trigger.");
+      showError("Failed to retrieve new tutor profile after creation. Please try again or contact support.");
       // Optionally, attempt to delete the auth user if profile creation failed
       await supabase.functions.invoke('manage-users', {
         body: JSON.stringify({
@@ -866,6 +872,9 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
 
   const newUser = (authData as any)?.user;
   if (newUser) {
+    // Add a small delay to allow the trigger to complete
+    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+
     // The trigger `handle_new_user` should have created the profile.
     // We need to fetch it to return the complete Profile object.
     const { data: newProfile, error: profileFetchError } = await supabase
@@ -875,8 +884,8 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
       .maybeSingle(); // Changed to maybeSingle()
 
     if (profileFetchError || !newProfile) {
-      console.error("Error fetching newly created HOD profile:", profileFetchError);
-      showError("Failed to retrieve new HOD profile: " + profileFetchError?.message);
+      console.error("Error fetching newly created HOD profile:", profileFetchError || "Profile not found after trigger.");
+      showError("Failed to retrieve new HOD profile after creation. Please try again or contact support.");
       // Optionally, attempt to delete the auth user if profile creation failed
       await supabase.functions.invoke('manage-users', {
         body: JSON.stringify({

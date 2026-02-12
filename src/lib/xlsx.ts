@@ -53,10 +53,12 @@ export const parseStudentFile = (file: File): Promise<Partial<StudentDetails & {
     reader.onload = (event) => {
       try {
         const data = event.target?.result;
+        // xlsx.read supports CSV automatically if type is 'binary' or 'string', or 'array' with simple content.
+        // For 'array', it usually detects format.
         const workbook = xlsx.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        
+
         // Use raw: true to get the underlying cell value (number or string)
         // Then manually convert the register_number to a string to prevent scientific notation.
         const json = xlsx.utils.sheet_to_json<Partial<StudentDetails & { password?: string; department_name?: string; batch_name?: string; tutor_name?: string; hod_name?: string }>>(worksheet, {
@@ -64,15 +66,15 @@ export const parseStudentFile = (file: File): Promise<Partial<StudentDetails & {
           range: 1, // Start reading data from the second row (index 1), skipping the header row
           raw: true, // Read raw values (numbers as numbers, strings as strings)
         });
-        
+
         // Clean up data (trim strings and ensure register_number is a string)
         const cleanedJson = json.map(row => {
           const cleanedRow: any = {};
           for (const key in row) {
             const value = (row as any)[key];
-            
-            if (key === 'register_number' && typeof value === 'number') {
-              // Convert large numbers to string without scientific notation
+
+            if (key === 'register_number' && value !== undefined && value !== null) {
+              // Convert large numbers to string without scientific notation, handles CSV numbers too
               cleanedRow[key] = String(value).trim();
             } else {
               cleanedRow[key] = typeof value === 'string' ? value.trim() : value;
@@ -83,7 +85,8 @@ export const parseStudentFile = (file: File): Promise<Partial<StudentDetails & {
 
         resolve(cleanedJson);
       } catch (error) {
-        reject(error);
+        console.error("Error parsing file:", error);
+        reject(new Error("Failed to parse file. Ensure it is a valid Excel or CSV file."));
       }
     };
     reader.onerror = (error) => {

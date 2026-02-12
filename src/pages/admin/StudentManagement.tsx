@@ -142,10 +142,10 @@ const StudentManagement = () => {
     if (!newStudentData.department_id || !selectedStartYear || !selectedEndYear) {
       return null;
     }
-    
+
     const batchName = `${selectedStartYear}-${selectedEndYear}`;
     const sectionToMatch = selectedSection === "No Section" ? null : selectedSection;
-    
+
     return batches.find(
       (b) =>
         b.department_id === newStudentData.department_id &&
@@ -209,7 +209,7 @@ const StudentManagement = () => {
         const batchNameParts = student.batch_name.split(' '); // e.g., "2024-2028 A" -> ["2024-2028", "A"]
         const batchName = batchNameParts[0];
         const section = batchNameParts.length > 1 ? batchNameParts[1] : "No Section";
-        
+
         let batch = batches.find(
           b => b.name === batchName && b.department_id === department?.id && (b.section === section || (section === "No Section" && b.section === null))
         );
@@ -306,7 +306,7 @@ const StudentManagement = () => {
       } else if (successfulUploads === 0) {
         showError("No students were uploaded. Please check the file and try again.");
       }
-      
+
       setUploadFile(null);
       setIsUploadDialogOpen(false);
       fetchAllData(); // Refresh the student list
@@ -321,9 +321,36 @@ const StudentManagement = () => {
   };
 
   const handleAddSingleStudent = async () => {
-    if (!newStudentData.first_name || !newStudentData.email || !newStudentData.register_number || 
-        !newStudentData.department_id || !selectedStartYear || !selectedEndYear || !selectedSection || !newStudentPassword) {
-      showError("Please fill in all required fields.");
+    console.log("Validating form data:", {
+      first_name: newStudentData.first_name,
+      email: newStudentData.email,
+      register_number: newStudentData.register_number,
+      department_id: newStudentData.department_id,
+      tutor_id: newStudentData.tutor_id,
+      startYear: selectedStartYear,
+      endYear: selectedEndYear,
+      section: selectedSection,
+      password: newStudentPassword
+    });
+
+    const missingFields = [];
+    if (!newStudentData.first_name) missingFields.push("First Name");
+    if (!newStudentData.email) missingFields.push("Email");
+    if (!newStudentData.register_number) missingFields.push("Register Number");
+    if (!newStudentData.department_id) missingFields.push("Department");
+    if (!newStudentData.tutor_id) missingFields.push("Tutor");
+    if (!selectedStartYear) missingFields.push("Batch Start Year");
+    if (!selectedEndYear) missingFields.push("Batch End Year");
+    if (!selectedSection) missingFields.push("Section");
+    if (!newStudentPassword) missingFields.push("Password");
+
+    if (parseInt(selectedStartYear) >= parseInt(selectedEndYear)) {
+      showError("Batch End Year must be after Start Year.");
+      return;
+    }
+
+    if (missingFields.length > 0) {
+      showError(`Please fill in the following required fields: ${missingFields.join(", ")}`);
       return;
     }
 
@@ -334,7 +361,7 @@ const StudentManagement = () => {
       const batchName = `${selectedStartYear}-${selectedEndYear}`;
       const sectionName = selectedSection === "No Section" ? null : selectedSection;
       const fullBatchName = sectionName ? `${batchName} ${sectionName}` : batchName;
-      
+
       const currentSemester = calculateCurrentSemesterForBatch(fullBatchName);
       const { from, to } = getSemesterDateRange(fullBatchName, currentSemester);
 
@@ -436,12 +463,10 @@ const StudentManagement = () => {
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Bulk Upload Students</DialogTitle>
-                <DialogDescription>
-                  Upload an XLSX file containing student data. Please use the provided template.
-                </DialogDescription>
+                Upload an XLSX or CSV file containing student data. Please use the provided template.
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <Input id="file" type="file" accept=".xlsx, .xls" onChange={handleFileChange} />
+                <Input id="file" type="file" accept=".xlsx, .xls, .csv" onChange={handleFileChange} />
                 {isBulkUploading && (
                   <div className="text-center text-sm text-muted-foreground">
                     Uploading: {bulkUploadProgress}%
@@ -505,8 +530,8 @@ const StudentManagement = () => {
 
                 <div className="grid gap-2">
                   <Label>Gender</Label>
-                  <RadioGroup 
-                    defaultValue="Male" 
+                  <RadioGroup
+                    defaultValue="Male"
                     className="flex gap-4"
                     onValueChange={(val) => setNewStudentData({ ...newStudentData, gender: val as "Male" | "Female" })}
                   >
@@ -552,7 +577,7 @@ const StudentManagement = () => {
                   <Label htmlFor="department_id">Department</Label>
                   <Select
                     value={newStudentData.department_id || ""}
-                    onValueChange={(value) => setNewStudentData({ ...newStudentData, department_id: value })}
+                    onValueChange={(value) => setNewStudentData({ ...newStudentData, department_id: value, tutor_id: undefined })}
                     required
                   >
                     <SelectTrigger id="department_id">

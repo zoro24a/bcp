@@ -33,7 +33,7 @@ export const getCertificateHtml = (
 
   // Ensure gender defaults to 'Male' if not explicitly set
   const isFemale = student.gender === "Female";
-  
+
   // Pronoun and salutation mappings
   const genderMap = {
     salutation: isFemale ? "Ms." : "Mr.",
@@ -105,22 +105,39 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
   tempDiv.style.padding = "20mm"; // Padding for margins
   tempDiv.style.boxSizing = "border-box"; // Include padding in width
   tempDiv.style.position = "absolute"; // Position absolutely
-  tempDiv.style.left = "-9999px"; // Move far off-screen
+  // Use visibility hidden instead of far-left positioning to ensure rendering context is active but not visible
+  tempDiv.style.zIndex = "-1000";
+  tempDiv.style.visibility = "hidden";
+  tempDiv.style.top = "0";
+  tempDiv.style.left = "0";
   tempDiv.style.backgroundColor = "white"; // Ensure white background for PDF
   tempDiv.innerHTML = `<div class="prose max-w-none">${htmlContent}</div>`; // Apply prose for styling
   document.body.appendChild(tempDiv);
 
-  // Wait briefly for rendering to complete
-  await new Promise(r => setTimeout(r, 300));
-
   try {
+    // Wait for fonts to load
+    await document.fonts.ready;
+
+    // Slight delay to ensure DOM updates and image loading (if any)
+    await new Promise(r => setTimeout(r, 500));
+
+    // Temporarily make visible for capture (browsers sometimes optimize away hidden elements)
+    // But since we use z-index -1000, it should be behind everything. 
+    // Ideally, for html2canvas, it needs to be "visible" in the DOM tree.
+    tempDiv.style.visibility = "visible";
+
     const canvas = await html2canvas(tempDiv, {
       scale: 2, // Increase scale for better resolution in PDF
       useCORS: true,
-      logging: true,
+      logging: false, // Disable logging in production
       windowWidth: tempDiv.offsetWidth, // Pass explicit width
       windowHeight: tempDiv.offsetHeight, // Pass explicit height
+      allowTaint: true, // Allow cross-origin images if CORS is not perfectly set (use with caution)
+      backgroundColor: "#ffffff", // Force white background
     });
+
+    // Hide it again immediately
+    tempDiv.style.visibility = "hidden";
 
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
@@ -153,6 +170,8 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
     console.error("[generatePdf] Error during html2canvas or PDF generation:", error);
     throw new Error("Failed to generate PDF: " + (error as Error).message);
   } finally {
-    document.body.removeChild(tempDiv); // Clean up the temporary element
+    if (document.body.contains(tempDiv)) {
+      document.body.removeChild(tempDiv); // Clean up the temporary element
+    }
   }
 };

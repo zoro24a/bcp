@@ -551,6 +551,27 @@ export const deleteTemplate = async (templateId: string): Promise<boolean> => {
   return true;
 };
 
+// New function: Upload asset to Supabase Storage
+export const uploadAsset = async (file: File, path: string): Promise<string | null> => {
+  const { data, error } = await supabase.storage
+    .from('certificate-assets')
+    .upload(path, file, {
+      upsert: true,
+    });
+
+  if (error) {
+    console.error("Error uploading asset:", error);
+    showError("Failed to upload asset: " + error.message);
+    return null;
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('certificate-assets')
+    .getPublicUrl(data.path);
+
+  return publicUrl;
+};
+
 // Utility function to remove undefined and empty string properties from an object
 const cleanObject = <T extends object>(obj: T): Partial<T> => {
   return Object.fromEntries(

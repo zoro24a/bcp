@@ -57,6 +57,18 @@ export const getCertificateHtml = (
     .replace(/{currentSemester}/g, student.current_semester?.toString() || 'N/A')
     .replace(/{date}/g, new Date().toLocaleDateString('en-GB'));
 
+  // Replace Asset Placeholders
+  const signHtml = template.principal_sign_url 
+    ? `<img src="${template.principal_sign_url}" style="max-height: 60px; display: block;" alt="Principal Signature" />`
+    : "";
+  const sealHtml = template.college_seal_url 
+    ? `<img src="${template.college_seal_url}" style="max-height: 80px; display: block;" alt="College Seal" />`
+    : "";
+
+  content = content
+    .replace(/{principalSign}/g, signHtml)
+    .replace(/{collegeSeal}/g, sealHtml);
+
   console.log("[getCertificateHtml] Content after standard replacements:", content);
 
   // Replace automatic gender markers
@@ -77,7 +89,7 @@ export const getCertificateHtml = (
 
   console.log("[getCertificateHtml] Content after gender-specific replacements:", content);
 
-  if (addSignature) {
+  if (addSignature && !template.principal_sign_url) {
     content +=
       "<p style='margin-top: 40px; text-align: right;'>--- E-Signed by Principal ---</p>";
   }

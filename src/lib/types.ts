@@ -30,6 +30,8 @@ export interface CertificateTemplate {
   content: string; // Now mandatory for HTML templates
   template_type: "html"; // Restricted to 'html' only
   file_url?: string; // Still optional, but won't be used for new templates
+  principal_sign_url?: string; // New: URL for principal signature image
+  college_seal_url?: string; // New: URL for college seal image
   created_at?: string;
 }
 

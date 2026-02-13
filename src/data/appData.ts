@@ -734,7 +734,39 @@ export const updateStudent = async (
   profileUpdates: Partial<Profile>,
   studentUpdates: Partial<NewStudentDetailsPayload>
 ): Promise<StudentDetails | null> => {
-  // 1. Update profiles table
+  // 1. Sync with Auth if email or username changed
+  if (profileUpdates.email || profileUpdates.username) {
+    const authUpdates: any = {};
+    if (profileUpdates.email) authUpdates.email = profileUpdates.email;
+    if (profileUpdates.username) {
+      authUpdates.user_metadata = { username: profileUpdates.username };
+    }
+
+    const { error: authError } = await supabase.functions.invoke('manage-users', {
+      body: JSON.stringify({
+        action: 'updateUserById',
+        payload: {
+          userId: studentId,
+          updates: authUpdates,
+        },
+      }),
+    });
+
+    if (authError) {
+      console.error("Error updating student auth details:", authError);
+      let errorMessage = authError.message;
+      if (authError instanceof FunctionsHttpError) {
+        try {
+          const errorData = await authError.context.json();
+          if (errorData && errorData.error) errorMessage = errorData.error;
+        } catch (e) {}
+      }
+      showError("Failed to update student in Auth system: " + errorMessage);
+      return null;
+    }
+  }
+
+  // 2. Update profiles table
   const { data: updatedProfile, error: profileError } = await supabase
     .from("profiles")
     .update(profileUpdates)
@@ -747,7 +779,7 @@ export const updateStudent = async (
     return null;
   }
 
-  // 2. Update students table
+  // 3. Update students table
   const { data: updatedStudentSpecific, error: studentError } = await supabase
     .from("students")
     .update(studentUpdates)

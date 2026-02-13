@@ -336,6 +336,8 @@ const StudentManagement = () => {
   };
 
   const handleAddSingleStudent = async () => {
+    console.log("Dyad Debug: handleAddSingleStudent called. editingStudent:", editingStudent?.id);
+    
     const missingFields = [];
     if (!newStudentData.first_name) missingFields.push("First Name");
     if (!newStudentData.email) missingFields.push("Email");
@@ -354,6 +356,18 @@ const StudentManagement = () => {
     if (missingFields.length > 0) {
       showError(`Please fill in the following required fields: ${missingFields.join(", ")}`);
       return;
+    }
+
+    // Pre-check for duplicates if creating a new student
+    if (!editingStudent) {
+      const existingStudent = allStudents.find(s => 
+        s.email?.toLowerCase() === newStudentData.email?.toLowerCase() || 
+        s.register_number === newStudentData.register_number
+      );
+      if (existingStudent) {
+        showError(`A student with this email or register number already exists. Please use the 'Edit' option from the table to update their details.`);
+        return;
+      }
     }
 
     let matchingBatch = findMatchingBatch();
@@ -390,6 +404,7 @@ const StudentManagement = () => {
     }
 
     if (editingStudent) {
+      console.log("Dyad Debug: Taking UPDATE path for student:", editingStudent.id);
       const result = await updateStudent(
         editingStudent.id,
         {
@@ -423,6 +438,7 @@ const StudentManagement = () => {
         showError("Failed to update student.");
       }
     } else {
+      console.log("Dyad Debug: Taking CREATE path for new student email:", newStudentData.email);
       const result = await createStudent(
         {
           first_name: newStudentData.first_name,

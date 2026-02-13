@@ -41,9 +41,9 @@ import {
   createStudent,
   fetchProfiles,
   createBatch,
-  fetchDepartmentByName, // New import
-  fetchBatchByNameAndDepartment, // New import
-  fetchProfileByNameAndRole, // New import
+  fetchDepartmentByName,
+  fetchBatchByNameAndDepartment,
+  fetchProfileByNameAndRole,
 } from "@/data/appData";
 import { Download, MoreHorizontal, Upload, UserPlus, Eye, EyeOff } from "lucide-react";
 import {
@@ -56,7 +56,7 @@ import { downloadStudentTemplate, parseStudentFile } from "@/lib/xlsx";
 import { showError, showSuccess } from "@/utils/toast";
 import { StudentDetails, Department, Batch, Profile } from "@/lib/types";
 import { calculateCurrentSemesterForBatch, getSemesterDateRange } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const StudentManagement = () => {
   const [allStudents, setAllStudents] = useState<StudentDetails[]>([]);
@@ -338,7 +338,7 @@ const StudentManagement = () => {
     if (!newStudentData.email) missingFields.push("Email");
     if (!newStudentData.register_number) missingFields.push("Register Number");
     if (!newStudentData.department_id) missingFields.push("Department");
-    if (!newStudentData.tutor_id) missingFields.push("Tutor");
+    if (!newStudentData.tutor_id || newStudentData.tutor_id === "unassigned") missingFields.push("Tutor");
     if (!selectedStartYear) missingFields.push("Batch Start Year");
     if (!selectedEndYear) missingFields.push("Batch End Year");
     if (!selectedSection) missingFields.push("Section");
@@ -592,6 +592,30 @@ const StudentManagement = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {newStudentData.department_id && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="tutor_id">Tutor</Label>
+                    <Select
+                      value={newStudentData.tutor_id || "unassigned"}
+                      onValueChange={(value) => setNewStudentData({ ...newStudentData, tutor_id: value })}
+                      required
+                    >
+                      <SelectTrigger id="tutor_id">
+                        <SelectValue placeholder="Select Tutor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {filteredTutorsByDepartment.map((tutor) => (
+                          <SelectItem key={tutor.id} value={tutor.id}>
+                            {`${tutor.first_name} ${tutor.last_name || ''}`.trim()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="batch_start_year">Batch Start Year</Label>

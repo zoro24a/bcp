@@ -327,6 +327,7 @@ const StudentManagement = () => {
       register_number: newStudentData.register_number,
       department_id: newStudentData.department_id,
       tutor_id: newStudentData.tutor_id,
+      hod_id: newStudentData.hod_id,
       startYear: selectedStartYear,
       endYear: selectedEndYear,
       section: selectedSection,
@@ -338,7 +339,6 @@ const StudentManagement = () => {
     if (!newStudentData.email) missingFields.push("Email");
     if (!newStudentData.register_number) missingFields.push("Register Number");
     if (!newStudentData.department_id) missingFields.push("Department");
-    if (!newStudentData.tutor_id || newStudentData.tutor_id === "unassigned") missingFields.push("Tutor");
     if (!selectedStartYear) missingFields.push("Batch Start Year");
     if (!selectedEndYear) missingFields.push("Batch End Year");
     if (!selectedSection) missingFields.push("Section");
@@ -577,7 +577,7 @@ const StudentManagement = () => {
                   <Label htmlFor="department_id">Department</Label>
                   <Select
                     value={newStudentData.department_id || ""}
-                    onValueChange={(value) => setNewStudentData({ ...newStudentData, department_id: value, tutor_id: undefined })}
+                    onValueChange={(value) => setNewStudentData({ ...newStudentData, department_id: value, tutor_id: undefined, hod_id: undefined })}
                     required
                   >
                     <SelectTrigger id="department_id">
@@ -594,25 +594,45 @@ const StudentManagement = () => {
                 </div>
 
                 {newStudentData.department_id && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="tutor_id">Tutor</Label>
-                    <Select
-                      value={newStudentData.tutor_id || "unassigned"}
-                      onValueChange={(value) => setNewStudentData({ ...newStudentData, tutor_id: value })}
-                      required
-                    >
-                      <SelectTrigger id="tutor_id">
-                        <SelectValue placeholder="Select Tutor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {filteredTutorsByDepartment.map((tutor) => (
-                          <SelectItem key={tutor.id} value={tutor.id}>
-                            {`${tutor.first_name} ${tutor.last_name || ''}`.trim()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="tutor_id">Tutor</Label>
+                      <Select
+                        value={newStudentData.tutor_id || "unassigned"}
+                        onValueChange={(value) => setNewStudentData({ ...newStudentData, tutor_id: value })}
+                      >
+                        <SelectTrigger id="tutor_id">
+                          <SelectValue placeholder="Select Tutor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          {filteredTutorsByDepartment.map((tutor) => (
+                            <SelectItem key={tutor.id} value={tutor.id}>
+                              {`${tutor.first_name} ${tutor.last_name || ''}`.trim()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="hod_id">HOD</Label>
+                      <Select
+                        value={newStudentData.hod_id || "unassigned"}
+                        onValueChange={(value) => setNewStudentData({ ...newStudentData, hod_id: value })}
+                      >
+                        <SelectTrigger id="hod_id">
+                          <SelectValue placeholder="Select HOD" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          {filteredHodsByDepartment.map((hod) => (
+                            <SelectItem key={hod.id} value={hod.id}>
+                              {`${hod.first_name} ${hod.last_name || ''}`.trim()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )}
 

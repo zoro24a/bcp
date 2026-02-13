@@ -12,6 +12,7 @@ import {
   AdminListUsersOptions,
 } from "@/lib/types";
 import { showError } from "@/utils/toast";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 // This file will now contain functions to interact with Supabase.
 
@@ -637,24 +638,25 @@ export const createStudent = async (
 
   if (authError) {
     console.error("Error signing up student user via Edge Function:", authError);
+    
+    let errorMessage = authError.message;
+    if (authError instanceof FunctionsHttpError) {
+      try {
+        const errorData = await authError.context.json();
+        if (errorData && errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch (e) {
+        console.error("Could not parse error response as JSON", e);
+      }
+    }
+
     // Check for specific error messages related to duplicate email
-    if (authError.message.includes('User already exists') || authError.message.includes('duplicate key value')) {
+    if (errorMessage.includes('User already exists') || errorMessage.includes('duplicate key value')) {
       return { error: `A user with email "${email}" already exists.` };
     }
-    // Log the full error response if available
-    const responseBody = (authError as any).context?.body;
-    if (responseBody) {
-        console.error("Edge Function Response Body:", responseBody);
-        try {
-            const parsedBody = JSON.parse(responseBody);
-            if (parsedBody.error) {
-                return { error: "Failed to create student user: " + parsedBody.error };
-            }
-        } catch (e) {
-            // Ignore parsing error
-        }
-    }
-    return { error: "Failed to create student user: " + authError.message };
+    
+    return { error: "Failed to create student user: " + errorMessage };
   }
 
   const newUser = (authData as any)?.user; // Cast to any to access user property
@@ -750,17 +752,19 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
 
   if (authError) {
     console.error("Error signing up tutor user via Edge Function:", authError);
-    const responseBody = (authError as any).context?.body;
-    if (responseBody) {
-        try {
-            const parsedBody = JSON.parse(responseBody);
-            showError("Failed to create tutor user: " + (parsedBody.error || authError.message));
-        } catch (e) {
-            showError("Failed to create tutor user: " + e.message);
+    
+    let errorMessage = authError.message;
+    if (authError instanceof FunctionsHttpError) {
+      try {
+        const errorData = await authError.context.json();
+        if (errorData && errorData.error) {
+          errorMessage = errorData.error;
         }
-    } else {
-        showError("Failed to create tutor user: " + authError.message);
+      } catch (e) {
+        console.error("Could not parse error response as JSON", e);
+      }
     }
+    showError("Failed to create tutor user: " + errorMessage);
     return null;
   }
 
@@ -811,17 +815,19 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
 
   if (error) {
     console.error("Error updating user password via Edge Function:", error);
-    const responseBody = (error as any).context?.body;
-    if (responseBody) {
-        try {
-            const parsedBody = JSON.parse(responseBody);
-            showError("Failed to update user password: " + (parsedBody.error || error.message));
-        } catch (e) {
-            showError("Failed to update user password: " + e.message);
+    
+    let errorMessage = error.message;
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const errorData = await error.context.json();
+        if (errorData && errorData.error) {
+          errorMessage = errorData.error;
         }
-    } else {
-        showError("Failed to update user password: " + error.message);
+      } catch (e) {
+        console.error("Could not parse error response as JSON", e);
+      }
     }
+    showError("Failed to update user password: " + errorMessage);
     return false;
   }
   console.log("User password updated successfully for user:", (data as any)?.user?.id);
@@ -867,17 +873,19 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
 
   if (authError) {
     console.error("Error signing up HOD user via Edge Function:", authError);
-    const responseBody = (authError as any).context?.body;
-    if (responseBody) {
-        try {
-            const parsedBody = JSON.parse(responseBody);
-            showError("Failed to create HOD user: " + (parsedBody.error || authError.message));
-        } catch (e) {
-            showError("Failed to create HOD user: " + e.message);
+    
+    let errorMessage = authError.message;
+    if (authError instanceof FunctionsHttpError) {
+      try {
+        const errorData = await authError.context.json();
+        if (errorData && errorData.error) {
+          errorMessage = errorData.error;
         }
-    } else {
-        showError("Failed to create HOD user: " + authError.message);
+      } catch (e) {
+        console.error("Could not parse error response as JSON", e);
+      }
     }
+    showError("Failed to create HOD user: " + errorMessage);
     return null;
   }
 

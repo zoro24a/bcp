@@ -729,6 +729,56 @@ export const createStudent = async (
   return null;
 };
 
+export const updateStudent = async (
+  studentId: string,
+  profileUpdates: Partial<Profile>,
+  studentUpdates: Partial<NewStudentDetailsPayload>
+): Promise<StudentDetails | null> => {
+  // 1. Update profiles table
+  const { data: updatedProfile, error: profileError } = await supabase
+    .from("profiles")
+    .update(profileUpdates)
+    .eq("id", studentId)
+    .select()
+    .single();
+
+  if (profileError) {
+    console.error("Error updating student profile:", profileError);
+    return null;
+  }
+
+  // 2. Update students table
+  const { data: updatedStudentSpecific, error: studentError } = await supabase
+    .from("students")
+    .update(studentUpdates)
+    .eq("id", studentId)
+    .select()
+    .single();
+
+  if (studentError) {
+    console.error("Error updating student specific data:", studentError);
+    return null;
+  }
+
+  return { ...updatedProfile, ...updatedStudentSpecific } as StudentDetails;
+};
+
+export const deleteStudent = async (studentId: string): Promise<boolean> => {
+  // When deleting a student, we should also delete their auth.users entry via Edge Function.
+  const { error } = await supabase.functions.invoke('manage-users', {
+    body: JSON.stringify({
+      action: 'deleteUser',
+      payload: { userId: studentId },
+    }),
+  });
+
+  if (error) {
+    console.error("Error deleting student user via Edge Function:", error);
+    return false;
+  }
+  return true;
+};
+
 export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>, password: string): Promise<Profile | null> => {
   const { email, ...metaData } = profileData;
   

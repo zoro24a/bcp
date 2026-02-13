@@ -31,6 +31,17 @@ import {
   DialogClose,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -39,11 +50,14 @@ import {
   fetchBatches,
   fetchDepartments,
   createStudent,
+  updateStudent,
+  deleteStudent,
   fetchProfiles,
   createBatch,
   fetchDepartmentByName,
   fetchBatchByNameAndDepartment,
   fetchProfileByNameAndRole,
+  updateUserPassword,
 } from "@/data/appData";
 import { Download, MoreHorizontal, Upload, UserPlus, Eye, EyeOff } from "lucide-react";
 import {
@@ -69,6 +83,7 @@ const StudentManagement = () => {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isAddSingleStudentDialogOpen, setIsAddSingleStudentDialogOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<StudentDetails | null>(null);
   const [newStudentData, setNewStudentData] = useState<Partial<StudentDetails>>({
     first_name: "",
     last_name: "",
@@ -321,19 +336,6 @@ const StudentManagement = () => {
   };
 
   const handleAddSingleStudent = async () => {
-    console.log("Validating form data:", {
-      first_name: newStudentData.first_name,
-      email: newStudentData.email,
-      register_number: newStudentData.register_number,
-      department_id: newStudentData.department_id,
-      tutor_id: newStudentData.tutor_id,
-      hod_id: newStudentData.hod_id,
-      startYear: selectedStartYear,
-      endYear: selectedEndYear,
-      section: selectedSection,
-      password: newStudentPassword
-    });
-
     const missingFields = [];
     if (!newStudentData.first_name) missingFields.push("First Name");
     if (!newStudentData.email) missingFields.push("Email");
@@ -342,7 +344,7 @@ const StudentManagement = () => {
     if (!selectedStartYear) missingFields.push("Batch Start Year");
     if (!selectedEndYear) missingFields.push("Batch End Year");
     if (!selectedSection) missingFields.push("Section");
-    if (!newStudentPassword) missingFields.push("Password");
+    if (!editingStudent && !newStudentPassword) missingFields.push("Password");
 
     if (parseInt(selectedStartYear) >= parseInt(selectedEndYear)) {
       showError("Batch End Year must be after Start Year.");
@@ -387,35 +389,131 @@ const StudentManagement = () => {
       batchIdToUse = matchingBatch.id;
     }
 
-    const result = await createStudent(
-      {
-        first_name: newStudentData.first_name,
-        last_name: newStudentData.last_name,
-        username: newStudentData.username || `${newStudentData.first_name}.${newStudentData.register_number}`,
-        email: newStudentData.email,
-        phone_number: newStudentData.phone_number,
-        department_id: newStudentData.department_id,
-        batch_id: batchIdToUse,
-        gender: newStudentData.gender,
-        role: 'student',
-      },
-      {
-        register_number: newStudentData.register_number!,
-        parent_name: newStudentData.parent_name,
-        batch_id: batchIdToUse,
-        tutor_id: newStudentData.tutor_id === "unassigned" ? undefined : newStudentData.tutor_id,
-        hod_id: newStudentData.hod_id === "unassigned" ? undefined : newStudentData.hod_id,
-      },
-      newStudentPassword
-    );
+    if (editingStudent) {
+      const result = await updateStudent(
+        editingStudent.id,
+        {
+          first_name: newStudentData.first_name,
+          last_name: newStudentData.last_name,
+          username: newStudentData.username,
+          email: newStudentData.email,
+          phone_number: newStudentData.phone_number,
+          department_id: newStudentData.department_id,
+          batch_id: batchIdToUse,
+          gender: newStudentData.gender,
+        },
+        {
+          register_number: newStudentData.register_number!,
+          parent_name: newStudentData.parent_name,
+          batch_id: batchIdToUse,
+          tutor_id: newStudentData.tutor_id === "unassigned" ? undefined : newStudentData.tutor_id,
+          hod_id: newStudentData.hod_id === "unassigned" ? undefined : newStudentData.hod_id,
+        }
+      );
 
-    if (result && 'error' in result) {
-      showError(result.error);
-    } else if (result) {
-      showSuccess(`Student added successfully!`);
-      setIsAddSingleStudentDialogOpen(false);
-      fetchAllData();
+      if (result) {
+        if (newStudentPassword) {
+          await updateUserPassword(editingStudent.id, newStudentPassword);
+        }
+        showSuccess("Student updated successfully!");
+        setIsAddSingleStudentDialogOpen(false);
+        setEditingStudent(null);
+        fetchAllData();
+      } else {
+        showError("Failed to update student.");
+      }
+    } else {
+      const result = await createStudent(
+        {
+          first_name: newStudentData.first_name,
+          last_name: newStudentData.last_name,
+          username: newStudentData.username || `${newStudentData.first_name}.${newStudentData.register_number}`,
+          email: newStudentData.email,
+          phone_number: newStudentData.phone_number,
+          department_id: newStudentData.department_id,
+          batch_id: batchIdToUse,
+          gender: newStudentData.gender,
+          role: 'student',
+        },
+        {
+          register_number: newStudentData.register_number!,
+          parent_name: newStudentData.parent_name,
+          batch_id: batchIdToUse,
+          tutor_id: newStudentData.tutor_id === "unassigned" ? undefined : newStudentData.tutor_id,
+          hod_id: newStudentData.hod_id === "unassigned" ? undefined : newStudentData.hod_id,
+        },
+        newStudentPassword
+      );
+
+      if (result && 'error' in result) {
+        showError(result.error);
+      } else if (result) {
+        showSuccess(`Student added successfully!`);
+        setIsAddSingleStudentDialogOpen(false);
+        fetchAllData();
+      }
     }
+  };
+
+  const handleEditStudent = (student: StudentDetails) => {
+    setEditingStudent(student);
+    setNewStudentData({
+      first_name: student.first_name,
+      last_name: student.last_name,
+      username: student.username,
+      email: student.email,
+      phone_number: student.phone_number,
+      register_number: student.register_number,
+      parent_name: student.parent_name,
+      department_id: student.department_id,
+      batch_id: student.batch_id,
+      gender: student.gender || "Male",
+      tutor_id: student.tutor_id,
+      hod_id: student.hod_id,
+    });
+    
+    if (student.batch_name) {
+      const parts = student.batch_name.split(' ');
+      const years = parts[0].split('-');
+      setSelectedStartYear(years[0]);
+      setSelectedEndYear(years[1]);
+      setSelectedSection(parts[1] || "No Section");
+    }
+    
+    setNewStudentPassword("");
+    setIsAddSingleStudentDialogOpen(true);
+  };
+
+  const handleDeleteStudent = async (studentId: string, studentName: string) => {
+    const deleted = await deleteStudent(studentId);
+    if (deleted) {
+      showSuccess(`Student "${studentName}" removed successfully.`);
+      fetchAllData();
+    } else {
+      showError("Failed to remove student.");
+    }
+  };
+
+  const resetForm = () => {
+    setEditingStudent(null);
+    setNewStudentData({
+      first_name: "",
+      last_name: "",
+      username: "",
+      email: "",
+      phone_number: "",
+      register_number: "",
+      parent_name: "",
+      department_id: "",
+      batch_id: "",
+      gender: "Male",
+      tutor_id: undefined,
+      hod_id: undefined,
+    });
+    setNewStudentPassword("");
+    setSelectedStartYear("");
+    setSelectedEndYear("");
+    setSelectedSection("");
   };
 
   return (
@@ -493,7 +591,10 @@ const StudentManagement = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Dialog open={isAddSingleStudentDialogOpen} onOpenChange={setIsAddSingleStudentDialogOpen}>
+          <Dialog open={isAddSingleStudentDialogOpen} onOpenChange={(open) => {
+            setIsAddSingleStudentDialogOpen(open);
+            if (!open) resetForm();
+          }}>
             <DialogTrigger asChild>
               <Button variant="default">
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -502,9 +603,9 @@ const StudentManagement = () => {
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>Add New Student</DialogTitle>
+                <DialogTitle>{editingStudent ? "Edit Student" : "Add New Student"}</DialogTitle>
                 <DialogDescription>
-                  Fill in the details to add a new student to the system.
+                  {editingStudent ? "Update the student's details below." : "Fill in the details to add a new student to the system."}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4 overflow-y-auto max-h-[70vh]">
@@ -531,7 +632,7 @@ const StudentManagement = () => {
                 <div className="grid gap-2">
                   <Label>Gender</Label>
                   <RadioGroup
-                    defaultValue="Male"
+                    value={newStudentData.gender}
                     className="flex gap-4"
                     onValueChange={(val) => setNewStudentData({ ...newStudentData, gender: val as "Male" | "Female" })}
                   >
@@ -666,14 +767,14 @@ const StudentManagement = () => {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Password {editingStudent && "(Leave blank to keep current)"}</Label>
                   <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={newStudentPassword}
                       onChange={(e) => setNewStudentPassword(e.target.value)}
-                      required
+                      required={!editingStudent}
                     />
                     <Button
                       type="button"
@@ -689,7 +790,7 @@ const StudentManagement = () => {
               </div>
               <DialogFooter>
                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                <Button onClick={handleAddSingleStudent}>Add Student</Button>
+                <Button onClick={handleAddSingleStudent}>{editingStudent ? "Update Student" : "Add Student"}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -716,7 +817,43 @@ const StudentManagement = () => {
                 <TableCell>{student.department_name}</TableCell>
                 <TableCell>{student.batch_name}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                  <AlertDialog>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditStudent(student)}>
+                          Edit Details
+                        </DropdownMenuItem>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem className="text-destructive">
+                            Delete Student
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the student
+                          account for {`${student.first_name} ${student.last_name || ''}`.trim()} and remove their data from our servers.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteStudent(student.id, `${student.first_name} ${student.last_name || ''}`.trim())}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </TableCell>
               </TableRow>
             ))}

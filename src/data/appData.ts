@@ -1042,12 +1042,22 @@ export const deleteHod = async (hodId: string): Promise<boolean> => {
 };
 
 export const fetchCollegeSettings = async (): Promise<CollegeSettings | null> => {
-  const { data, error } = await supabase.from("college_settings").select("*").maybeSingle();
-  if (error) {
-    console.error("Error fetching college settings:", error);
+  try {
+    const { data, error } = await supabase.from("college_settings").select("*").maybeSingle();
+    if (error) {
+      // If the error is 404, it means the table doesn't exist yet.
+      if (error.code === 'PGRST116' || error.message.includes('relation "college_settings" does not exist')) {
+        console.warn("College settings table not found. Please run the SQL setup.");
+        return null;
+      }
+      console.error("Error fetching college settings:", error);
+      return null;
+    }
+    return data as CollegeSettings;
+  } catch (e) {
+    console.error("Unexpected error fetching college settings:", e);
     return null;
   }
-  return data as CollegeSettings;
 };
 
 export const updateCollegeSettings = async (updates: Partial<CollegeSettings>): Promise<CollegeSettings | null> => {

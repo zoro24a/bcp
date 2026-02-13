@@ -35,6 +35,13 @@ export interface CertificateTemplate {
   created_at?: string;
 }
 
+export interface CollegeSettings {
+  id: string;
+  principal_signature_url?: string;
+  college_seal_url?: string;
+  updated_at?: string;
+}
+
 export interface Department {
   id: string; // UUID from Supabase
   name: string;

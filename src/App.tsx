@@ -45,6 +45,8 @@ import PrincipalPendingRequests from "@/pages/principal/PendingRequests";
 import PrincipalRequestHistory from "@/pages/principal/RequestHistory";
 import PrincipalDepartmentOverview from "@/pages/principal/DepartmentOverview";
 import PrincipalProfile from "@/pages/principal/Profile";
+// Shared Pages
+import SignsManagement from "@/pages/shared/SignsManagement";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) => {
@@ -105,6 +107,7 @@ const AppRoutes = () => {
         <Route path="manage-tutors" element={<AdminManageTutors />} />
         <Route path="department-management" element={<AdminDepartmentManagement />} />
         <Route path="template-management" element={<AdminTemplateManagement />} />
+        <Route path="signs-management" element={<SignsManagement />} />
         <Route path="profile" element={<AdminProfile />} />
       </Route>
       
@@ -160,6 +163,7 @@ const AppRoutes = () => {
         <Route path="pending-requests" element={<PrincipalPendingRequests />} />
         <Route path="request-history" element={<PrincipalRequestHistory />} />
         <Route path="department-overview" element={<PrincipalDepartmentOverview />} />
+        <Route path="signs-management" element={<SignsManagement />} />
         <Route path="profile" element={<PrincipalProfile />} />
       </Route>
       

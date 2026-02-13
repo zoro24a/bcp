@@ -7,6 +7,7 @@ import {
   History,
   FileClock,
   Building,
+  PenTool,
 } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import { NavItem } from "@/lib/types";
@@ -34,6 +35,11 @@ const navItems: NavItem[] = [
     icon: <Building className="h-4 w-4" />,
   },
   {
+    title: "Signs Management",
+    href: "/principal/signs-management",
+    icon: <PenTool className="h-4 w-4" />,
+  },
+  {
     title: "Profile",
     href: "/principal/profile",
     icon: <User className="h-4 w-4" />,
@@ -49,7 +55,6 @@ const PrincipalLayout = () => {
 
   return (
     <div className="flex h-screen w-full">
-      {/* Desktop Sidebar */}
       <Sidebar
         navItems={navItems}
         portalName="Principal Portal"
@@ -58,13 +63,10 @@ const PrincipalLayout = () => {
         toggleCollapse={toggleCollapse}
       />
 
-      {/* Main Content Area */}
       <div className="flex flex-col flex-1">
-        {/* Shared Header for both desktop and mobile */}
         <Header navItems={navItems} portalName="Principal Portal" />
 
-        {/* Main Content */}
-        <main className="flex-1 p-6 wavy-background"> {/* Applied wavy-background */}
+        <main className="flex-1 p-6 wavy-background">
           <Outlet />
         </main>
       </div>

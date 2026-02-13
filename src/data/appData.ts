@@ -10,6 +10,7 @@ import {
   HodDetails,
   RequestStatus,
   AdminListUsersOptions,
+  CollegeSettings,
 } from "@/lib/types";
 import { showError } from "@/utils/toast";
 import { FunctionsHttpError } from "@supabase/supabase-js";
@@ -1038,4 +1039,42 @@ export const deleteHod = async (hodId: string): Promise<boolean> => {
     return false;
   }
   return true;
+};
+
+export const fetchCollegeSettings = async (): Promise<CollegeSettings | null> => {
+  const { data, error } = await supabase.from("college_settings").select("*").maybeSingle();
+  if (error) {
+    console.error("Error fetching college settings:", error);
+    return null;
+  }
+  return data as CollegeSettings;
+};
+
+export const updateCollegeSettings = async (updates: Partial<CollegeSettings>): Promise<CollegeSettings | null> => {
+  const settings = await fetchCollegeSettings();
+  
+  if (settings) {
+    const { data, error } = await supabase
+      .from("college_settings")
+      .update(updates)
+      .eq("id", settings.id)
+      .select()
+      .single();
+    if (error) {
+      console.error("Error updating college settings:", error);
+      return null;
+    }
+    return data as CollegeSettings;
+  } else {
+    const { data, error } = await supabase
+      .from("college_settings")
+      .insert(updates)
+      .select()
+      .single();
+    if (error) {
+      console.error("Error creating college settings:", error);
+      return null;
+    }
+    return data as CollegeSettings;
+  }
 };

@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { BonafideRequest, CertificateTemplate, StudentDetails } from "./types";
+import { BonafideRequest, CertificateTemplate, StudentDetails, CollegeSettings } from "./types";
+import { fetchCollegeSettings } from "@/data/appData";
 
 /**
  * Generates the final HTML content for a certificate by populating a template with data.
@@ -14,7 +15,8 @@ export const getCertificateHtml = (
   request: BonafideRequest,
   student: StudentDetails | null,
   template: CertificateTemplate | undefined,
-  addSignature: boolean = false
+  addSignature: boolean = false,
+  globalSettings?: CollegeSettings | null
 ): string => {
   if (!template) {
     console.error("[getCertificateHtml] Error: Certificate template not found.");
@@ -25,11 +27,8 @@ export const getCertificateHtml = (
     return "<p>Error: Student details not found.</p>";
   }
 
-  console.log("[getCertificateHtml] Raw template content from DB:", template.content);
-
-  // Content is now expected to be raw HTML, no unescaping needed here.
+  // Content is now expected to be raw HTML
   let content = template.content || "";
-  console.log("[getCertificateHtml] Content after initial processing (no unescaping):", content);
 
   // Ensure gender defaults to 'Male' if not explicitly set
   const isFemale = student.gender === "Female";
@@ -47,29 +46,30 @@ export const getCertificateHtml = (
   content = content
     .replace(/{studentName}/g, `${student.first_name} ${student.last_name || ''}`.trim())
     .replace(/{studentId}/g, student.register_number)
-    .replace(/{purpose}/g, request.type) // Injected dynamically (e.g., Scholarship, Passport)
-    .replace(/{subPurpose}/g, request.sub_type || '') // Optional sub-type
-    .replace(/{reason}/g, request.type) // Legacy support for {reason}
-    .replace(/{detailedReason}/g, request.reason) // The actual reason text provided by the student
+    .replace(/{purpose}/g, request.type)
+    .replace(/{subPurpose}/g, request.sub_type || '')
+    .replace(/{reason}/g, request.type)
+    .replace(/{detailedReason}/g, request.reason)
     .replace(/{parentName}/g, student.parent_name || 'N/A')
     .replace(/{department}/g, student.department_name || 'N/A')
     .replace(/{batch}/g, student.batch_name || 'N/A')
     .replace(/{currentSemester}/g, student.current_semester?.toString() || 'N/A')
     .replace(/{date}/g, new Date().toLocaleDateString('en-GB'));
 
-  // Replace Asset Placeholders
-  const signHtml = template.principal_sign_url 
-    ? `<img src="${template.principal_sign_url}" style="max-height: 60px; display: block;" alt="Principal Signature" />`
+  // Asset Placeholders - Use template specific URLs first, then fallback to global settings
+  const finalSignUrl = template.principal_sign_url || globalSettings?.principal_signature_url;
+  const finalSealUrl = template.college_seal_url || globalSettings?.college_seal_url;
+
+  const signHtml = finalSignUrl 
+    ? `<img src="${finalSignUrl}" style="max-height: 60px; display: block;" alt="Principal Signature" />`
     : "";
-  const sealHtml = template.college_seal_url 
-    ? `<img src="${template.college_seal_url}" style="max-height: 80px; display: block;" alt="College Seal" />`
+  const sealHtml = finalSealUrl 
+    ? `<img src="${finalSealUrl}" style="max-height: 80px; display: block;" alt="College Seal" />`
     : "";
 
   content = content
     .replace(/{principalSign}/g, signHtml)
     .replace(/{collegeSeal}/g, sealHtml);
-
-  console.log("[getCertificateHtml] Content after standard replacements:", content);
 
   // Replace automatic gender markers
   content = content
@@ -87,14 +87,11 @@ export const getCertificateHtml = (
     .replace(/{heShe}/g, genderMap.heShe)
     .replace(/{hisHer}/g, genderMap.hisHer);
 
-  console.log("[getCertificateHtml] Content after gender-specific replacements:", content);
-
-  if (addSignature && !template.principal_sign_url) {
+  if (addSignature && !finalSignUrl) {
     content +=
       "<p style='margin-top: 40px; text-align: right;'>--- E-Signed by Principal ---</p>";
   }
 
-  console.log("[getCertificateHtml] Final HTML content generated:", content); // Debugging line
   return content;
 };
 
@@ -104,51 +101,38 @@ export const getCertificateHtml = (
  * @param fileName The name of the file to be downloaded.
  */
 export const generatePdf = async (htmlContent: string, fileName: string) => {
-  console.log("[generatePdf] Starting PDF generation for file:", fileName);
-  console.log("[generatePdf] HTML content length:", htmlContent.length);
-
   if (!htmlContent || htmlContent.trim() === "") {
-    console.error("[generatePdf] HTML content is empty, cannot generate PDF.");
     throw new Error("HTML content is empty, cannot generate PDF.");
   }
 
   const tempDiv = document.createElement("div");
-  tempDiv.style.width = "210mm"; // A4 width
-  tempDiv.style.padding = "20mm"; // Padding for margins
-  tempDiv.style.boxSizing = "border-box"; // Include padding in width
-  tempDiv.style.position = "absolute"; // Position absolutely
-  // Use visibility hidden instead of far-left positioning to ensure rendering context is active but not visible
+  tempDiv.style.width = "210mm";
+  tempDiv.style.padding = "20mm";
+  tempDiv.style.boxSizing = "border-box";
+  tempDiv.style.position = "absolute";
   tempDiv.style.zIndex = "-1000";
   tempDiv.style.visibility = "hidden";
   tempDiv.style.top = "0";
   tempDiv.style.left = "0";
-  tempDiv.style.backgroundColor = "white"; // Ensure white background for PDF
-  tempDiv.innerHTML = `<div class="prose max-w-none">${htmlContent}</div>`; // Apply prose for styling
+  tempDiv.style.backgroundColor = "white";
+  tempDiv.innerHTML = `<div class="prose max-w-none">${htmlContent}</div>`;
   document.body.appendChild(tempDiv);
 
   try {
-    // Wait for fonts to load
     await document.fonts.ready;
-
-    // Slight delay to ensure DOM updates and image loading (if any)
     await new Promise(r => setTimeout(r, 500));
-
-    // Temporarily make visible for capture (browsers sometimes optimize away hidden elements)
-    // But since we use z-index -1000, it should be behind everything. 
-    // Ideally, for html2canvas, it needs to be "visible" in the DOM tree.
     tempDiv.style.visibility = "visible";
 
     const canvas = await html2canvas(tempDiv, {
-      scale: 2, // Increase scale for better resolution in PDF
+      scale: 2,
       useCORS: true,
-      logging: false, // Disable logging in production
-      windowWidth: tempDiv.offsetWidth, // Pass explicit width
-      windowHeight: tempDiv.offsetHeight, // Pass explicit height
-      allowTaint: true, // Allow cross-origin images if CORS is not perfectly set (use with caution)
-      backgroundColor: "#ffffff", // Force white background
+      logging: false,
+      windowWidth: tempDiv.offsetWidth,
+      windowHeight: tempDiv.offsetHeight,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
     });
 
-    // Hide it again immediately
     tempDiv.style.visibility = "hidden";
 
     const imgData = canvas.toDataURL('image/png');
@@ -158,11 +142,10 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
       format: "a4",
     });
 
-    const imgWidth = 210; // A4 width in mm
-    const pageHeight = 297; // A4 height in mm
+    const imgWidth = 210;
+    const pageHeight = 297;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     let heightLeft = imgHeight;
-
     let position = 0;
 
     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
@@ -176,14 +159,12 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
     }
 
     pdf.save(fileName);
-    console.log("[generatePdf] PDF generated and downloaded successfully.");
-
   } catch (error) {
-    console.error("[generatePdf] Error during html2canvas or PDF generation:", error);
+    console.error("[generatePdf] Error:", error);
     throw new Error("Failed to generate PDF: " + (error as Error).message);
   } finally {
     if (document.body.contains(tempDiv)) {
-      document.body.removeChild(tempDiv); // Clean up the temporary element
+      document.body.removeChild(tempDiv);
     }
   }
 };

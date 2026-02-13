@@ -5,11 +5,15 @@ export type RequestStatus =
   | "Pending HOD Approval"
   | "Pending Admin Approval"
   | "Pending Principal Approval"
-  | "Approved"
+  | "Pending Office Approval" // New status
+  | "Approved by Principal"   // New status
+  | "Issued"                  // New final status (replaces Approved)
+  | "Approved"                // Kept for legacy compatibility
   | "Returned by Tutor"
   | "Returned by HOD"
   | "Returned by Admin"
-  | "Returned by Principal";
+  | "Returned by Principal"
+  | "Returned by Office";     // New status
 
 export interface BonafideRequest {
   id: string; // UUID from Supabase
@@ -30,15 +34,11 @@ export interface CertificateTemplate {
   content: string; // Now mandatory for HTML templates
   template_type: "html"; // Restricted to 'html' only
   file_url?: string; // Still optional, but won't be used for new templates
-  principal_sign_url?: string; // New: URL for principal signature image
-  college_seal_url?: string; // New: URL for college seal image
   created_at?: string;
 }
 
 export interface CollegeSettings {
   id: string;
-  principal_signature_url?: string;
-  college_seal_url?: string;
   updated_at?: string;
 }
 
@@ -66,7 +66,7 @@ export interface Batch {
   created_at?: string;
 }
 
-// Unified Profile type for all users (student, tutor, hod, admin, principal)
+// Unified Profile type for all users (student, tutor, hod, admin, principal, office)
 export interface Profile {
   id: string; // auth.users UUID
   first_name?: string;
@@ -75,8 +75,9 @@ export interface Profile {
   email?: string;
   phone_number?: string;
   avatar_url?: string;
-  role: "student" | "tutor" | "hod" | "admin" | "principal";
+  role: "student" | "tutor" | "hod" | "admin" | "principal" | "office"; // Added office role
   gender?: "Male" | "Female"; // Added gender
+
   department_id?: string; // For HODs, Tutors
   batch_id?: string; // For Students, Tutors
   departments?: Department; // Added for joined data

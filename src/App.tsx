@@ -45,6 +45,11 @@ import PrincipalPendingRequests from "@/pages/principal/PendingRequests";
 import PrincipalRequestHistory from "@/pages/principal/RequestHistory";
 import PrincipalDepartmentOverview from "@/pages/principal/DepartmentOverview";
 import PrincipalProfile from "@/pages/principal/Profile";
+// Office Pages
+import OfficeDashboard from "@/pages/office/Dashboard";
+import CertificatesReady from "@/pages/office/CertificatesReady";
+import OfficeProfile from "@/pages/office/Profile";
+import OfficeLayout from "@/components/layouts/OfficeLayout";
 // Shared Pages
 import SignsManagement from "@/pages/shared/SignsManagement";
 
@@ -92,7 +97,7 @@ const AppRoutes = () => {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/login" element={<AuthPage />} />
-      
+
       {/* Admin Routes */}
       <Route path="/admin" element={
         <ProtectedRoute allowedRoles={["admin"]}>
@@ -110,7 +115,7 @@ const AppRoutes = () => {
         <Route path="signs-management" element={<SignsManagement />} />
         <Route path="profile" element={<AdminProfile />} />
       </Route>
-      
+
       {/* Student Routes */}
       <Route path="/student" element={
         <ProtectedRoute allowedRoles={["student"]}>
@@ -123,7 +128,7 @@ const AppRoutes = () => {
         <Route path="my-requests" element={<StudentMyRequests />} />
         <Route path="profile" element={<StudentProfile />} />
       </Route>
-      
+
       {/* Tutor Routes */}
       <Route path="/tutor" element={
         <ProtectedRoute allowedRoles={["tutor"]}>
@@ -138,7 +143,7 @@ const AppRoutes = () => {
         <Route path="template-management" element={<AdminTemplateManagement />} />
         <Route path="profile" element={<TutorProfile />} />
       </Route>
-      
+
       {/* HOD Routes */}
       <Route path="/hod" element={
         <ProtectedRoute allowedRoles={["hod"]}>
@@ -151,7 +156,7 @@ const AppRoutes = () => {
         <Route path="request-history" element={<HodRequestHistory />} />
         <Route path="profile" element={<HodProfile />} />
       </Route>
-      
+
       {/* Principal Routes */}
       <Route path="/principal" element={
         <ProtectedRoute allowedRoles={["principal"]}>
@@ -166,7 +171,19 @@ const AppRoutes = () => {
         <Route path="signs-management" element={<SignsManagement />} />
         <Route path="profile" element={<PrincipalProfile />} />
       </Route>
-      
+
+      {/* Office Routes */}
+      <Route path="/office" element={
+        <ProtectedRoute allowedRoles={["office"]}>
+          <OfficeLayout />
+        </ProtectedRoute>
+      } >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<OfficeDashboard />} />
+        <Route path="certificates-ready" element={<CertificatesReady />} />
+        <Route path="profile" element={<OfficeProfile />} />
+      </Route>
+
       {/* Catch-all for 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>

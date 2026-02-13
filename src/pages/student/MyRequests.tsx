@@ -43,7 +43,7 @@ const MyRequests = () => {
         setLoading(true);
         const allRequests = await fetchRequests();
         const filtered = allRequests.filter((req) => req.student_id === user.id);
-        
+
         // Sort requests by created_at or date in descending order (most recent first)
         const sortedRequests = [...filtered].sort((a, b) => {
           const dateA = new Date(a.created_at || a.date);
@@ -61,38 +61,7 @@ const MyRequests = () => {
     getRequests();
   }, [user]);
 
-  const handleDownload = async (request: BonafideRequest) => {
-    // Add logging here
-    console.log("[MyRequests] Initiating download for request:", request.id);
-    console.log("[MyRequests] Request template ID:", request.template_id);
-
-    if (!request.template_id) {
-      showError("Error: No certificate template was assigned to this request.");
-      return;
-    }
-
-    const student: StudentDetails | null = await fetchStudentDetails(request.student_id);
-    const template: CertificateTemplate | undefined = templates.find((t) => t.id === request.template_id);
-
-    if (!student || !template) {
-      showError("Could not fetch student or template for download. Please ensure the template exists and student details are complete.");
-      return;
-    }
-
-    console.log("[MyRequests] Student details for PDF:", student);
-    console.log("[MyRequests] Template for PDF:", template);
-    console.log("[MyRequests] Template content for PDF:", template.content);
-
-    try {
-      const htmlContent = getCertificateHtml(request, student, template, true); // Always add signature for student download
-      console.log("[MyRequests] Final HTML content for PDF generation:", htmlContent); // Debugging
-      const fileName = `Bonafide-${student.register_number}.pdf`;
-      await generatePdf(htmlContent, fileName);
-    } catch (err: any) {
-      console.error("Download generation error:", err);
-      showError("An error occurred while generating the certificate: " + err.message);
-    }
-  };
+  // handleDownload removed
 
   if (loading) {
     return (
@@ -138,15 +107,13 @@ const MyRequests = () => {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {request.status === "Approved" && (
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => handleDownload(request)}
-                      >
-                        <Download className="h-4 w-4" />
-                        <span className="sr-only">Download</span>
-                      </Button>
+                    {request.status === "Issued" && (
+                      <Badge variant="outline" className="border-green-500 text-green-600">
+                        Ready for Collection
+                      </Badge>
+                    )}
+                    {request.status === "Approved by Principal" && (
+                      <span className="text-muted-foreground text-sm">Processing at Office</span>
                     )}
                     {request.status.startsWith("Returned by") && (
                       <Dialog>

@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { BonafideRequest, CertificateTemplate, StudentDetails, CollegeSettings } from "./types";
+import { BonafideRequest, CertificateTemplate, StudentDetails } from "./types";
 import { fetchCollegeSettings } from "@/data/appData";
 
 /**
@@ -14,9 +14,7 @@ import { fetchCollegeSettings } from "@/data/appData";
 export const getCertificateHtml = (
   request: BonafideRequest,
   student: StudentDetails | null,
-  template: CertificateTemplate | undefined,
-  addSignature: boolean = false,
-  globalSettings?: CollegeSettings | null
+  template: CertificateTemplate | undefined
 ): string => {
   if (!template) {
     console.error("[getCertificateHtml] Error: Certificate template not found.");
@@ -56,20 +54,6 @@ export const getCertificateHtml = (
     .replace(/{currentSemester}/g, student.current_semester?.toString() || 'N/A')
     .replace(/{date}/g, new Date().toLocaleDateString('en-GB'));
 
-  // Asset Placeholders - Use template specific URLs first, then fallback to global settings
-  const finalSignUrl = template.principal_sign_url || globalSettings?.principal_signature_url;
-  const finalSealUrl = template.college_seal_url || globalSettings?.college_seal_url;
-
-  const signHtml = finalSignUrl 
-    ? `<img src="${finalSignUrl}" style="max-height: 60px; display: block;" alt="Principal Signature" />`
-    : "";
-  const sealHtml = finalSealUrl 
-    ? `<img src="${finalSealUrl}" style="max-height: 80px; display: block;" alt="College Seal" />`
-    : "";
-
-  content = content
-    .replace(/{principalSign}/g, signHtml)
-    .replace(/{collegeSeal}/g, sealHtml);
 
   // Replace automatic gender markers
   content = content
@@ -86,11 +70,6 @@ export const getCertificateHtml = (
     .replace(/{parentRelation}/g, genderMap.parentRelation)
     .replace(/{heShe}/g, genderMap.heShe)
     .replace(/{hisHer}/g, genderMap.hisHer);
-
-  if (addSignature && !finalSignUrl) {
-    content +=
-      "<p style='margin-top: 40px; text-align: right;'>--- E-Signed by Principal ---</p>";
-  }
 
   return content;
 };

@@ -47,7 +47,6 @@ const PrincipalPendingRequests = () => {
   const [isReturnOpen, setIsReturnOpen] = useState(false);
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [returnReason, setReturnReason] = useState("");
-  const [addSignature, setAddSignature] = useState(true);
   const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,17 +63,17 @@ const PrincipalPendingRequests = () => {
         setRequests([]);
       } else {
         setRequests(data as BonafideRequest[]);
-        
+
         // Fetch details for all students involved in these requests
         const uniqueStudentIds = Array.from(new Set(data.map(r => r.student_id)));
         const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
         const detailsResults = await Promise.all(detailsPromises);
-        
+
         const newMap = new Map<string, StudentDetails>();
         detailsResults.forEach(detail => {
-            if (detail) {
-                newMap.set(detail.id, detail);
-            }
+          if (detail) {
+            newMap.set(detail.id, detail);
+          }
         });
         setStudentDetailsMap(newMap);
       }
@@ -93,66 +92,29 @@ const PrincipalPendingRequests = () => {
     fetchPrincipalRequests();
   }, [user]);
 
-  const handleApproveAndDownload = async () => {
+  const handleApprove = async () => {
     if (!selectedRequest) {
       showError("No request selected for approval.");
       return;
     }
 
-    const student = previewStudentDetails; // Use the details already verified in preview
-    
     if (!selectedRequest.template_id) {
       showError("Error: No certificate template was assigned to this request. Please return it to the HOD/Tutor.");
       return;
     }
 
-    const template: CertificateTemplate | undefined = templates.find(
-      (t) => t.id === selectedRequest.template_id
-    );
+    // New Workflow: Principal Approval -> Office
+    // Updates status to "Approved by Principal"
+    const updated = await updateRequestStatus(selectedRequest.id, "Approved by Principal");
 
-    if (!student) {
-      showError("Error: Failed to retrieve student details (Department/Batch info) for this request.");
-      return;
-    }
-
-    if (!template) {
-      showError(`Error: The assigned certificate template (ID: ${selectedRequest.template_id}) could not be found.`);
-      return;
-    }
-
-    // Add logging here to confirm template content and student details
-    console.log("[PrincipalPendingRequests] Approving request:", selectedRequest.id);
-    console.log("[PrincipalPendingRequests] Student details for PDF:", student);
-    console.log("[PrincipalPendingRequests] Template for PDF:", template);
-    console.log("[PrincipalPendingRequests] Template content for PDF:", template.content);
-
-
-    try {
-      // Since template_type is now strictly "html", we can simplify this.
-      const htmlContent = getCertificateHtml(
-        selectedRequest,
-        student,
-        template,
-        addSignature
-      );
-      console.log("[PrincipalPendingRequests] Final HTML content for PDF generation:", htmlContent); // Debugging
-      const fileName = `Bonafide-${student.register_number}.pdf`;
-      await generatePdf(htmlContent, fileName);
-
-      const updated = await updateRequestStatus(selectedRequest.id, "Approved");
-      if (updated) {
-        showSuccess(`Request approved and document downloaded.`);
-        fetchPrincipalRequests();
-        setIsApproveOpen(false);
-        setSelectedRequest(null);
-        setPreviewStudentDetails(null);
-        setAddSignature(true);
-      } else {
-        showError("The certificate was downloaded, but the request status could not be updated in the database.");
-      }
-    } catch (err: any) {
-      console.error("Generation error:", err);
-      showError("An error occurred while generating the certificate: " + err.message);
+    if (updated) {
+      showSuccess("Request approved and forwarded to Office.");
+      setRequests(requests.filter((r) => r.id !== selectedRequest.id));
+      setIsApproveOpen(false);
+      setSelectedRequest(null);
+      setPreviewStudentDetails(null);
+    } else {
+      showError("Failed to update status.");
     }
   };
 
@@ -286,7 +248,6 @@ const PrincipalPendingRequests = () => {
         if (!open) {
           setSelectedRequest(null);
           setPreviewStudentDetails(null);
-          setAddSignature(true);
         }
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0"> {/* Added max-h and flex-col */}
@@ -296,7 +257,7 @@ const PrincipalPendingRequests = () => {
               Review the certificate content and choose whether to add an e-signature before approving and downloading.
             </DialogDescription>
           </DialogHeader>
-          
+
           <ScrollArea className="flex-1 p-6 pt-2"> {/* Wrapped content in ScrollArea */}
             {selectedRequest && (
               <div className="py-4">
@@ -311,8 +272,7 @@ const PrincipalPendingRequests = () => {
                       const htmlContent = getCertificateHtml(
                         selectedRequest,
                         previewStudentDetails,
-                        template,
-                        addSignature
+                        template
                       );
                       console.log("[PrincipalPendingRequests] Preview HTML content:", htmlContent); // Debugging
                       return (
@@ -321,16 +281,10 @@ const PrincipalPendingRequests = () => {
                             className="p-4 border rounded-md bg-muted prose dark:prose-invert max-w-none"
                             dangerouslySetInnerHTML={{ __html: htmlContent }}
                           />
-                          <div className="flex items-center space-x-2 mt-4">
-                            <Checkbox
-                              id="e-sign"
-                              checked={addSignature}
-                              onCheckedChange={(checked) =>
-                                setAddSignature(checked as boolean)
-                              }
-                            />
-                            <Label htmlFor="e-sign">Add E-Signature</Label>
-                          </div>
+                          <Button onClick={handleApprove}>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Approve & Forward to Office
+                          </Button>
                         </>
                       );
                     } else {
@@ -355,8 +309,8 @@ const PrincipalPendingRequests = () => {
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={handleApproveAndDownload}>
-              Approve and Download
+            <Button onClick={handleApprove}>
+              Approve & Forward to Office
             </Button>
           </DialogFooter>
         </DialogContent>

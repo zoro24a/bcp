@@ -65,6 +65,9 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
             case 'principal':
               navigate('/principal/dashboard', { replace: true });
               break;
+            case 'office':
+              navigate('/office/dashboard', { replace: true });
+              break;
             default:
               navigate('/', { replace: true });
           }
@@ -107,6 +110,9 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
                 break;
               case 'principal':
                 navigate('/principal/dashboard', { replace: true });
+                break;
+              case 'office':
+                navigate('/office/dashboard', { replace: true });
                 break;
               default:
                 navigate('/', { replace: true });

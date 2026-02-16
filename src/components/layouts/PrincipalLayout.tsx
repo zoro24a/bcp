@@ -35,11 +35,6 @@ const navItems: NavItem[] = [
     icon: <Building className="h-4 w-4" />,
   },
   {
-    title: "Signs Management",
-    href: "/principal/signs-management",
-    icon: <PenTool className="h-4 w-4" />,
-  },
-  {
     title: "Profile",
     href: "/principal/profile",
     icon: <User className="h-4 w-4" />,

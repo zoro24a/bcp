@@ -53,8 +53,8 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
     console.error("Dyad Debug: Error fetching student profile:", profileError);
     // If no profile is found, we can't proceed. Return null as per function signature.
     if (profileError?.code === 'PGRST116') {
-        console.error(`Dyad Debug: No profile found for student ID: ${studentId}`);
-        return null;
+      console.error(`Dyad Debug: No profile found for student ID: ${studentId}`);
+      return null;
     }
     throw new Error("Failed to fetch student profile: " + profileError?.message);
   }
@@ -101,7 +101,7 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
       .select(`*`)
       .eq("id", batch_id)
       .maybeSingle(); // Use maybeSingle for robustness
-      
+
     if (batchError) {
       console.warn("Dyad Debug: Error fetching batch details:", batchError);
     } else {
@@ -115,7 +115,7 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
           .select(`name`)
           .eq("id", batch.department_id)
           .maybeSingle();
-        
+
         if (departmentError) {
           console.warn("Dyad Debug: Error fetching department details:", departmentError);
         } else {
@@ -214,7 +214,7 @@ export const fetchAllStudentsWithDetails = async (): Promise<StudentDetails[]> =
     console.error("Error fetching all batches:", batchesError);
     throw new Error("Failed to fetch all batches: " + batchesError.message);
   }
-  
+
   // Fetch all departments separately
   const { data: departmentsData, error: departmentsError } = await supabase
     .from("departments")
@@ -275,7 +275,7 @@ export const fetchTutorDetails = async (tutorId: string): Promise<TutorDetails |
     console.error("Error fetching tutor profile:", profileError);
     throw new Error("Failed to fetch tutor profile: " + profileError?.message);
   }
-  
+
   let department: Department | null = null;
   if (profileData.department_id) {
     const { data: departmentData, error: departmentError } = await supabase
@@ -465,6 +465,15 @@ export const updateRequestStatus = async (requestId: string, status: RequestStat
   return data?.[0] as BonafideRequest || null;
 };
 
+export const updateRequest = async (requestId: string, updates: Partial<BonafideRequest>): Promise<BonafideRequest | null> => {
+  const { data, error } = await supabase.from("requests").update(updates).eq("id", requestId).select();
+  if (error) {
+    console.error("Error updating request:", error);
+    return null;
+  }
+  return data?.[0] as BonafideRequest || null;
+};
+
 export const updateProfile = async (userId: string, updates: Partial<Profile>): Promise<Profile | null> => {
   const { data, error } = await supabase.from("profiles").update(updates).eq("id", userId).select().single();
   if (error) {
@@ -623,7 +632,7 @@ export const createStudent = async (
   password?: string // Make password optional
 ): Promise<CreateStudentResult | null> => {
   const { email, username, ...otherProfileData } = profileData;
-  
+
   // Generate a random password if not provided (e.g., for bulk upload)
   const finalPassword = password || Math.random().toString(36).slice(-8); // Simple random password
 
@@ -660,7 +669,7 @@ export const createStudent = async (
 
   if (authError) {
     console.error("Error signing up student user via Edge Function:", authError);
-    
+
     let errorMessage = authError.message;
     if (authError instanceof FunctionsHttpError) {
       try {
@@ -677,7 +686,7 @@ export const createStudent = async (
     if (errorMessage.includes('User already exists') || errorMessage.includes('duplicate key value')) {
       return { error: `A user with email "${email}" already exists.` };
     }
-    
+
     return { error: "Failed to create student user: " + errorMessage };
   }
 
@@ -719,11 +728,11 @@ export const createStudent = async (
 
     if (studentError || !newStudentSpecificData) {
       console.error("Error creating student entry:", studentError);
-      
+
       // Check for duplicate register number error (code '23505' for unique constraint violation)
       if (studentError?.code === '23505' && studentError.message.includes('students_register_number_key')) {
         const errorMessage = `Register number "${studentData.register_number}" already exists.`;
-        
+
         // Roll back: delete the profile and auth user if student-specific data creation fails
         await supabase.from("profiles").delete().eq("id", newProfile.id);
         await supabase.functions.invoke('manage-users', {
@@ -734,7 +743,7 @@ export const createStudent = async (
         });
         return { error: errorMessage };
       }
-      
+
       // Roll back for other errors
       await supabase.from("profiles").delete().eq("id", newProfile.id);
       await supabase.functions.invoke('manage-users', {
@@ -781,7 +790,7 @@ export const updateStudent = async (
         try {
           const errorData = await authError.context.json();
           if (errorData && errorData.error) errorMessage = errorData.error;
-        } catch (e) {}
+        } catch (e) { }
       }
       showError("Failed to update student in Auth system: " + errorMessage);
       return null;
@@ -835,7 +844,7 @@ export const deleteStudent = async (studentId: string): Promise<boolean> => {
 
 export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>, password: string): Promise<Profile | null> => {
   const { email, ...metaData } = profileData;
-  
+
   const cleanedMetaData = cleanObject(metaData);
 
   // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
@@ -856,7 +865,7 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
 
   if (authError) {
     console.error("Error signing up tutor user via Edge Function:", authError);
-    
+
     let errorMessage = authError.message;
     if (authError instanceof FunctionsHttpError) {
       try {
@@ -878,7 +887,7 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
     // We need to fetch it to return the complete Profile object.
     const newProfile = await retryFetchProfile(newUser.id);
 
-    if ( !newProfile) {
+    if (!newProfile) {
       console.error("Error fetching newly created tutor profile: Profile not found after multiple retries.");
       showError("Failed to retrieve new tutor profile after creation. Please try again or contact support.");
       // Optionally, attempt to delete the auth user if profile creation failed
@@ -919,7 +928,7 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
 
   if (error) {
     console.error("Error updating user password via Edge Function:", error);
-    
+
     let errorMessage = error.message;
     if (error instanceof FunctionsHttpError) {
       try {
@@ -956,7 +965,7 @@ export const deleteTutor = async (tutorId: string): Promise<boolean> => {
 
 export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>, password: string): Promise<Profile | null> => {
   const { email, ...metaData } = profileData;
-  
+
   const cleanedMetaData = cleanObject(metaData);
 
   // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
@@ -977,7 +986,7 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
 
   if (authError) {
     console.error("Error signing up HOD user via Edge Function:", authError);
-    
+
     let errorMessage = authError.message;
     if (authError instanceof FunctionsHttpError) {
       try {
@@ -1062,7 +1071,7 @@ export const fetchCollegeSettings = async (): Promise<CollegeSettings | null> =>
 
 export const updateCollegeSettings = async (updates: Partial<CollegeSettings>): Promise<CollegeSettings | null> => {
   const settings = await fetchCollegeSettings();
-  
+
   if (settings) {
     const { data, error } = await supabase
       .from("college_settings")

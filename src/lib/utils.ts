@@ -21,6 +21,9 @@ export const getStatusVariant = (
     case "Returned by HOD":
     case "Returned by Admin":
     case "Returned by Principal":
+    case "Returned to HOD":
+    case "Returned to Tutor":
+    case "Returned to Student":
       return "destructive";
     default:
       return "default";
@@ -101,8 +104,8 @@ export const getSemesterDateRange = (
   const yearPart = batchName.split(" ")[0]; // "2023-2027 A" -> "2023-2027"
   const parsedStartYear = parseInt(yearPart.split("-")[0], 10);
   // Use current year as fallback if parsedStartYear is invalid
-  const startYear = isNaN(parsedStartYear) ? new Date().getFullYear() : parsedStartYear; 
-  
+  const startYear = isNaN(parsedStartYear) ? new Date().getFullYear() : parsedStartYear;
+
   const academicYearOffset = Math.floor((currentSemester - 1) / 2);
   const isOddSemester = currentSemester % 2 !== 0;
 

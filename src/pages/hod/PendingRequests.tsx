@@ -59,17 +59,17 @@ const HodPendingRequests = () => {
           setRequests([]);
         } else {
           setRequests(requestsData as BonafideRequest[]);
-          
+
           // Fetch details for all students involved in these requests
           const uniqueStudentIds = Array.from(new Set(requestsData.map(r => r.student_id)));
           const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
           const detailsResults = await Promise.all(detailsPromises);
-          
+
           const newMap = new Map<string, StudentDetails>();
           detailsResults.forEach(detail => {
-              if (detail) {
-                  newMap.set(detail.id, detail);
-              }
+            if (detail) {
+              newMap.set(detail.id, detail);
+            }
           });
           setStudentDetailsMap(newMap);
         }
@@ -102,9 +102,9 @@ const HodPendingRequests = () => {
 
   const handleReturn = async () => {
     if (!selectedRequest || !returnReason) return;
-    const updated = await updateRequestStatus(selectedRequest.id, "Returned by HOD", returnReason);
+    const updated = await updateRequestStatus(selectedRequest.id, "Returned to Tutor", returnReason);
     if (updated) {
-      showSuccess(`Request ${selectedRequest.id} returned to student.`);
+      showSuccess(`Request ${selectedRequest.id} returned to tutor.`);
       fetchHodRequests(); // Refresh list
       setIsReturnOpen(false);
       setIsReviewOpen(false);
@@ -209,7 +209,7 @@ const HodPendingRequests = () => {
                 setIsReturnOpen(true);
               }}
             >
-              Return to Student
+              Return to Tutor
             </Button>
             <Button onClick={handleForward}>
               Forward to Principal
@@ -221,14 +221,14 @@ const HodPendingRequests = () => {
       <Dialog open={isReturnOpen} onOpenChange={setIsReturnOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reason for Return</DialogTitle>
+            <DialogTitle>Reason for Return (to Tutor)</DialogTitle>
             <DialogDescription>
-              Provide a clear reason for returning this request to the student.
+              Provide a clear reason for returning this request to the Tutor.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <Label htmlFor="return-reason">
-              Please provide a reason for returning this request.
+              Please provide a reason for returning this request to the Tutor.
             </Label>
             <Textarea
               id="return-reason"

@@ -1,7 +1,6 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { BonafideRequest, CertificateTemplate, StudentDetails } from "./types";
-import { fetchCollegeSettings } from "@/data/appData";
 
 /**
  * Generates the final HTML content for a certificate by populating a template with data.

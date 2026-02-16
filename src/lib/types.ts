@@ -13,6 +13,9 @@ export type RequestStatus =
   | "Returned by HOD"
   | "Returned by Admin"
   | "Returned by Principal"
+  | "Returned to HOD"         // New status
+  | "Returned to Tutor"       // New status
+  | "Returned to Student"     // New status
   | "Returned by Office";     // New status
 
 export interface BonafideRequest {
@@ -25,6 +28,7 @@ export interface BonafideRequest {
   status: RequestStatus;
   template_id?: string; // UUID of the template
   return_reason?: string;
+  resubmission_count?: number; // New field
   created_at?: string;
 }
 

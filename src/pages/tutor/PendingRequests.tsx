@@ -88,22 +88,22 @@ const TutorPendingRequests = () => {
           setRequests([]);
         } else {
           setRequests(requestsData as BonafideRequest[]);
-          
+
           // Fetch details for all students involved in these requests using Promise.allSettled
           const uniqueStudentIds = Array.from(new Set(requestsData.map(r => r.student_id)));
           const detailsPromises = uniqueStudentIds.map(id => fetchStudentDetails(id));
-          
+
           // Use Promise.allSettled to ensure all promises complete, regardless of individual success/failure
           const detailsResults = await Promise.allSettled(detailsPromises);
-          
+
           const newMap = new Map<string, StudentDetails>();
           detailsResults.forEach(result => {
-              if (result.status === 'fulfilled' && result.value) {
-                  newMap.set(result.value.id, result.value);
-              } else if (result.status === 'rejected') {
-                  console.error("Failed to fetch student detail:", result.reason);
-                  // Optionally show a toast error here, but we proceed with available data
-              }
+            if (result.status === 'fulfilled' && result.value) {
+              newMap.set(result.value.id, result.value);
+            } else if (result.status === 'rejected') {
+              console.error("Failed to fetch student detail:", result.reason);
+              // Optionally show a toast error here, but we proceed with available data
+            }
           });
           setStudentDetailsMap(newMap);
         }
@@ -141,7 +141,7 @@ const TutorPendingRequests = () => {
 
   const handleReturn = async () => {
     if (!selectedRequest || !returnReason) return;
-    const updated = await updateRequestStatus(selectedRequest.id, "Returned by Tutor", returnReason);
+    const updated = await updateRequestStatus(selectedRequest.id, "Returned to Student", returnReason);
     if (updated) {
       showSuccess(`Request ${selectedRequest.id} returned to student.`);
       fetchTutorRequests(); // Refresh list

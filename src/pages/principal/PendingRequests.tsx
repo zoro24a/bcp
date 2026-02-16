@@ -35,6 +35,7 @@ import RequestDetailsView from "@/components/shared/RequestDetailsView";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import { CheckCircle } from "lucide-react";
 
 const PrincipalPendingRequests = () => {
   const { user } = useSession();
@@ -120,7 +121,7 @@ const PrincipalPendingRequests = () => {
 
   const handleReturn = async () => {
     if (!selectedRequest || !returnReason) return;
-    const updated = await updateRequestStatus(selectedRequest.id, "Returned by Principal", returnReason);
+    const updated = await updateRequestStatus(selectedRequest.id, "Returned to HOD", returnReason);
     if (updated) {
       showSuccess(`Request returned to HOD.`);
       fetchPrincipalRequests();
@@ -254,7 +255,7 @@ const PrincipalPendingRequests = () => {
           <DialogHeader className="p-6 pb-2"> {/* Added padding */}
             <DialogTitle>Approve Certificate</DialogTitle>
             <DialogDescription>
-              Review the certificate content and choose whether to add an e-signature before approving and downloading.
+              Review the certificate content before approving and forwarding to the office.
             </DialogDescription>
           </DialogHeader>
 
@@ -287,14 +288,8 @@ const PrincipalPendingRequests = () => {
                           </Button>
                         </>
                       );
-                    } else {
-                      // This branch should ideally not be hit if template_type is strictly "html"
-                      return (
-                        <p className="text-muted-foreground">
-                          This is a file-based template ({template.template_type?.toUpperCase()}). It will be downloaded directly.
-                        </p>
-                      );
                     }
+                    return null;
                   })()
                 ) : (
                   <p className="text-destructive">

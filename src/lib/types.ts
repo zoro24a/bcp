@@ -28,6 +28,9 @@ export interface BonafideRequest {
   status: RequestStatus;
   template_id?: string; // UUID of the template
   return_reason?: string;
+  tutor_return_reason?: string;
+  hod_return_reason?: string;
+  principal_return_reason?: string;
   resubmission_count?: number; // New field
   created_at?: string;
 }

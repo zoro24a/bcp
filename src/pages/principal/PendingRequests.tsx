@@ -121,7 +121,13 @@ const PrincipalPendingRequests = () => {
 
   const handleReturn = async () => {
     if (!selectedRequest || !returnReason) return;
-    const updated = await updateRequestStatus(selectedRequest.id, "Returned to HOD", returnReason);
+    // Updated to save to principal_return_reason to ensure it's not overwritten
+    const { updateRequest } = await import("@/data/appData");
+    const updated = await updateRequest(selectedRequest.id, {
+      status: "Returned to HOD",
+      principal_return_reason: returnReason,
+      return_reason: returnReason
+    });
     if (updated) {
       showSuccess(`Request returned to HOD.`);
       fetchPrincipalRequests();

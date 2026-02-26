@@ -31,11 +31,12 @@ import {
 import { BonafideRequest, StudentDetails, CertificateTemplate } from "@/lib/types";
 import { getStatusVariant, formatDateToIndian } from "@/lib/utils";
 import { generatePdf, getCertificateHtml } from "@/lib/pdf";
-import { Download } from "lucide-react";
+import { Download, Info } from "lucide-react";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import { useEffect, useState } from "react";
 import { showError, showSuccess } from "@/utils/toast";
 import { Label } from "@/components/ui/label";
+import RequestDetailsView from "@/components/shared/RequestDetailsView";
 import {
   Select,
   SelectContent,
@@ -168,22 +169,20 @@ const MyRequests = () => {
                         <div className="flex gap-2">
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="secondary" size="sm">
+                              <Button variant="secondary" size="sm" className="gap-1.5">
+                                <Info className="h-3.5 w-3.5" />
                                 Review
                               </Button>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle>Reason for Return</DialogTitle>
+                                <DialogTitle>Request Details & Review</DialogTitle>
                                 <DialogDescription>
-                                  Your request was returned for the following reason.
-                                  Please address the issue and resubmit if necessary.
+                                  Your request was returned. Please review the details and history below, then address any issues and resubmit.
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="py-4">
-                                <p className="text-sm font-medium bg-muted p-4 rounded-md">
-                                  {request.return_reason || "No reason provided."}
-                                </p>
+                                <RequestDetailsView request={request} student={studentDetails} />
                               </div>
                             </DialogContent>
                           </Dialog>

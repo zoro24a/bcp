@@ -52,7 +52,7 @@ const HodPendingRequests = () => {
         const { data: requestsData, error: requestsError } = await supabase
           .from('requests')
           .select('*')
-          .eq('status', 'Pending HOD Approval');
+          .in('status', ['Pending HOD Approval', 'Returned to HOD']);
 
         if (requestsError) {
           showError("Error fetching pending requests: " + requestsError.message);
@@ -102,7 +102,13 @@ const HodPendingRequests = () => {
 
   const handleReturn = async () => {
     if (!selectedRequest || !returnReason) return;
-    const updated = await updateRequestStatus(selectedRequest.id, "Returned to Tutor", returnReason);
+    // Updated to save to hod_return_reason to ensure it's not overwritten
+    const { updateRequest } = await import("@/data/appData");
+    const updated = await updateRequest(selectedRequest.id, {
+      status: "Returned to Tutor",
+      hod_return_reason: returnReason,
+      return_reason: returnReason
+    });
     if (updated) {
       showSuccess(`Request ${selectedRequest.id} returned to tutor.`);
       fetchHodRequests(); // Refresh list
@@ -201,20 +207,27 @@ const HodPendingRequests = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedRequest && <RequestDetailsView request={selectedRequest} student={studentForReview} />}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsReviewOpen(false);
-                setIsReturnOpen(true);
-              }}
-            >
-              Return to Tutor
-            </Button>
-            <Button onClick={handleForward}>
-              Forward to Principal
-            </Button>
-          </DialogFooter>
+          {selectedRequest && (
+            <DialogFooter>
+              {(selectedRequest.status === "Pending HOD Approval" ||
+                selectedRequest.status === "Returned to HOD") && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsReviewOpen(false);
+                      setIsReturnOpen(true);
+                    }}
+                  >
+                    Return to Tutor
+                  </Button>
+                )}
+              {selectedRequest.status === "Pending HOD Approval" && (
+                <Button onClick={handleForward}>
+                  Forward to Principal
+                </Button>
+              )}
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 

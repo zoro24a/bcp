@@ -51,7 +51,11 @@ const HodPendingRequests = () => {
         // Fetch requests pending HOD approval (RLS handles filtering by department)
         const { data: requestsData, error: requestsError } = await supabase
           .from('requests')
-          .select('*')
+          .select(`
+            *,
+            tutor:profiles!requests_tutor_id_fkey(name),
+            hod:profiles!requests_hod_id_fkey(name)
+          `)
           .in('status', ['Pending HOD Approval', 'Returned to HOD']);
 
         if (requestsError) {
@@ -175,8 +179,8 @@ const HodPendingRequests = () => {
                       </TableCell>
                       <TableCell>{student?.batch_name || "N/A"}</TableCell>
                       <TableCell>{student?.current_semester || "N/A"}</TableCell>
-                      <TableCell>{student?.tutor_name || "N/A"}</TableCell>
-                      <TableCell>{formatDateToIndian(request.date)}</TableCell>
+                      <TableCell>{request.tutor?.name || "N/A"}</TableCell>
+                      <TableCell>{formatDateToIndian(request.created_at || request.date)}</TableCell>
                       <TableCell>{request.type}</TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" onClick={() => openReviewDialog(request)}>

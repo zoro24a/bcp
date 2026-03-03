@@ -1,6 +1,6 @@
 import Sidebar from "@/components/shared/Sidebar";
 import Header from "@/components/shared/Header";
-import { LayoutDashboard, FileCheck, User } from "lucide-react";
+import { LayoutDashboard, FileCheck, User, CheckCircle } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import { NavItem } from "@/lib/types";
 import { useState } from "react";
@@ -12,9 +12,14 @@ const navItems: NavItem[] = [
         icon: <LayoutDashboard className="h-4 w-4" />,
     },
     {
+        title: "All Requests",
+        href: "/office/all-requests",
+        icon: <FileCheck className="h-4 w-4" />,
+    },
+    {
         title: "Certificates Ready",
         href: "/office/certificates-ready",
-        icon: <FileCheck className="h-4 w-4" />,
+        icon: <CheckCircle className="h-4 w-4" />,
     },
     {
         title: "Profile",

@@ -79,7 +79,11 @@ const TutorPendingRequests = () => {
 
         const { data: requestsData, error: requestsError } = await supabase
           .from('requests')
-          .select('*')
+          .select(`
+            *,
+            tutor:profiles!requests_tutor_id_fkey(name),
+            hod:profiles!requests_hod_id_fkey(name)
+          `)
           .in('status', ['Pending Tutor Approval', 'Returned to Tutor'])
           .in('student_id', tutorStudentsIds);
 
@@ -127,7 +131,23 @@ const TutorPendingRequests = () => {
 
   const handleForward = async () => {
     if (!selectedRequest || !selectedTemplate) return;
-    const updated = await updateRequestStatus(selectedRequest.id, "Pending HOD Approval", undefined, selectedTemplate);
+
+    const { fetchHodByDepartment, fetchStudentDetails, updateRequest } = await import("@/data/appData");
+    let hodId = undefined;
+
+    // Get student details to find department
+    const student = await fetchStudentDetails(selectedRequest.student_id);
+    if (student?.department_id) {
+      const hod = await fetchHodByDepartment(student.department_id);
+      hodId = hod?.id;
+    }
+
+    const updated = await updateRequest(selectedRequest.id, {
+      status: "Pending HOD Approval",
+      template_id: selectedTemplate,
+      hod_id: hodId
+    });
+
     if (updated) {
       showSuccess(`Request ${selectedRequest.id} forwarded to HOD.`);
       fetchTutorRequests(); // Refresh list
@@ -193,6 +213,7 @@ const TutorPendingRequests = () => {
                 <TableHead>Reg No.</TableHead>
                 <TableHead>Student Name</TableHead>
                 <TableHead>Sem</TableHead>
+                <TableHead>HOD</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -211,7 +232,8 @@ const TutorPendingRequests = () => {
                         {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
                       </TableCell>
                       <TableCell>{student?.current_semester || "N/A"}</TableCell>
-                      <TableCell>{formatDateToIndian(request.date)}</TableCell>
+                      <TableCell>{request.hod?.name || "N/A"}</TableCell>
+                      <TableCell>{formatDateToIndian(request.created_at || request.date)}</TableCell>
                       <TableCell>{request.type}</TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" onClick={() => openReviewDialog(request)}>

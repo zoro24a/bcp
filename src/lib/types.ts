@@ -7,6 +7,7 @@ export type RequestStatus =
   | "Pending Principal Approval"
   | "Pending Office Approval" // New status
   | "Approved by Principal"   // New status
+  | "Ready for Issue"         // Status for office issuance
   | "Issued"                  // New final status (replaces Approved)
   | "Approved"                // Kept for legacy compatibility
   | "Returned by Tutor"
@@ -27,12 +28,21 @@ export interface BonafideRequest {
   reason: string;
   status: RequestStatus;
   template_id?: string; // UUID of the template
+  certificate_number?: string; // New field for issued certificates
+  tutor_id?: string; // UUID of the tutor profile
+  hod_id?: string; // UUID of the HOD profile
+  tutor?: { name: string }; // Joined tutor name
+  hod?: { name: string }; // Joined HOD name
   return_reason?: string;
   tutor_return_reason?: string;
   hod_return_reason?: string;
   principal_return_reason?: string;
   resubmission_count?: number; // New field
+  issued_at?: string; // New field
   created_at?: string;
+  specialization_snapshot?: string; // Renamed from specialization
+  company_block?: string; // Added field for internships/passport
+  duration_block?: string; // Added field for internships
 }
 
 export interface CertificateTemplate {
@@ -104,6 +114,7 @@ export interface StudentDetails extends Profile {
   tutor_name?: string; // Joined from profiles table
   hod_name?: string; // Joined from profiles table
   current_semester?: number; // Joined from batches table
+  specialization?: string; // Added field
 }
 
 export interface TutorDetails extends Profile {

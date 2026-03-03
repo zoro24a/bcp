@@ -50,8 +50,7 @@ const CertificatesReady = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const allRequests = await fetchRequests();
-            const pendingIssue = allRequests.filter(r => r.status === "Approved by Principal");
+            const pendingIssue = await fetchRequests("Ready for Issue");
             setRequests(pendingIssue);
 
             if (pendingIssue.length > 0) {
@@ -97,17 +96,24 @@ const CertificatesReady = () => {
     const handleIssue = async () => {
         if (!selectedRequest) return;
 
-        // Optional: Generate PDF for download/printing by Office staff here if needed
-        // For now, just update status
+        const { issueCertificate } = await import("@/data/appData");
+        const updated = await issueCertificate(selectedRequest.id);
 
-        const updated = await updateRequestStatus(selectedRequest.id, "Issued");
         if (updated) {
-            showSuccess("Certificate marked as Issued.");
-            fetchData();
-            setIsPreviewOpen(false);
-            setSelectedRequest(null);
+            showSuccess(`Certificate Issued: ${updated.certificate_number}`);
+
+            // Refresh preview with the newly generated certificate number
+            const student = studentDetailsMap.get(updated.student_id);
+            const template = templates.find(t => t.id === updated.template_id);
+            if (student && template) {
+                const html = getCertificateHtml(updated, student, template);
+                setPreviewHtml(html);
+                setSelectedRequest(updated);
+            }
+
+            fetchData(); // Refresh the list in the background
         } else {
-            showError("Failed to update status.");
+            // Error handling is inside issueCertificate
         }
     };
 
@@ -151,6 +157,8 @@ const CertificatesReady = () => {
                                 <TableHead>Reg No.</TableHead>
                                 <TableHead>Student Name</TableHead>
                                 <TableHead>Department</TableHead>
+                                <TableHead>Tutor</TableHead>
+                                <TableHead>HOD</TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -168,6 +176,8 @@ const CertificatesReady = () => {
                                                 {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
                                             </TableCell>
                                             <TableCell>{student?.department_name || "N/A"}</TableCell>
+                                            <TableCell>{request.tutor?.name || "N/A"}</TableCell>
+                                            <TableCell>{request.hod?.name || "N/A"}</TableCell>
                                             <TableCell>{request.type}</TableCell>
                                             <TableCell className="text-right flex justify-end gap-2">
                                                 <Button size="sm" variant="outline" onClick={() => handlePreview(request)}>
@@ -208,12 +218,21 @@ const CertificatesReady = () => {
                         <div className="flex-1 flex justify-start">
                             <Button variant="secondary" onClick={handlePrint}>Download PDF</Button>
                         </div>
-                        <Button variant="destructive" onClick={() => { setIsPreviewOpen(false); setIsReturnOpen(true); }}>
-                            <RotateCcw className="h-4 w-4 mr-2" /> Return
-                        </Button>
-                        <Button onClick={handleIssue}>
-                            <CheckCircle className="h-4 w-4 mr-2" /> Issue Certificate
-                        </Button>
+                        {selectedRequest?.status !== "Issued" && (
+                            <>
+                                <Button variant="destructive" onClick={() => { setIsPreviewOpen(false); setIsReturnOpen(true); }}>
+                                    <RotateCcw className="h-4 w-4 mr-2" /> Return
+                                </Button>
+                                <Button onClick={handleIssue}>
+                                    <CheckCircle className="h-4 w-4 mr-2" /> Issue Certificate
+                                </Button>
+                            </>
+                        )}
+                        {selectedRequest?.status === "Issued" && (
+                            <DialogClose asChild>
+                                <Button variant="outline">Done</Button>
+                            </DialogClose>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

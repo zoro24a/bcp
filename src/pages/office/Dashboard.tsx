@@ -17,13 +17,13 @@ const OfficeDashboard = () => {
     useEffect(() => {
         const loadStats = async () => {
             try {
-                const allRequests = await fetchRequests();
-                const readyToIssue = allRequests.filter(r => r.status === "Approved by Principal").length;
-                const issued = allRequests.filter(r => r.status === "Issued").length;
+                const relevantRequests = await fetchRequests(["Ready for Issue", "Issued"]);
+                const pendingIssue = relevantRequests.filter(r => r.status === "Ready for Issue").length;
+                const issuedCount = relevantRequests.filter(r => r.status === "Issued").length;
 
                 setStats({
-                    readyToIssue,
-                    issued,
+                    readyToIssue: pendingIssue,
+                    issued: issuedCount,
                 });
             } catch (error: any) {
                 showError("Failed to load dashboard statistics.");

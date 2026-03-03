@@ -11,7 +11,10 @@ export const getStatusVariant = (
 ): "success" | "secondary" | "destructive" | "default" => {
   switch (status) {
     case "Approved":
+    case "Issued":
       return "success";
+    case "Ready for Issue":
+      return "default";
     case "Pending Tutor Approval":
     case "Pending HOD Approval":
     case "Pending Admin Approval":

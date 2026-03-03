@@ -149,28 +149,56 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
   }, [fetchUserProfileAndRedirect, navigate, profile]); // Added profile to dependency array
 
   const signOut = async () => {
-    console.log("Attempting to sign out...");
-    console.log("Current session before signOut:", session);
+    console.log("Portal Logout: Initiating sign out process...");
 
-    const { error } = await supabase.auth.signOut();
+    try {
+      // 1. Safe Session Check: Pre-flight check to avoid unnecessary 403s
+      const { data: { session: activeSession } } = await supabase.auth.getSession();
 
-    if (error) {
-      console.error('Supabase signOut error:', error);
-      showError('Logout failed: ' + error.message);
-      // Even if signOut fails, we want to clear client-side state and navigate.
-      if (error.message.includes("Auth session missing")) {
-        console.warn("Supabase reported 'Auth session missing'. Proceeding with client-side state clear.");
+      if (activeSession) {
+        // 2. Clear Server Session: Use 'local' scope for cleanest device-specific sign out
+        const { error } = await supabase.auth.signOut({ scope: 'local' });
+
+        if (error) {
+          // 403 / "Auth session missing" is common if session already expired; we treat it as "done"
+          if (error.status === 403 || error.message.includes("Auth session missing")) {
+            console.warn("Portal Logout: Session already invalidated on server.");
+          } else {
+            console.error('Portal Logout: Supabase error:', error);
+          }
+        }
       }
-    } else {
-      console.log("Supabase signOut successful.");
-      showSuccess('Logged out successfully!');
-    }
 
-    // Always clear client-side state and navigate to landing page after attempting signOut
-    setSession(null);
-    setUser(null);
-    setProfile(null);
-    navigate('/', { replace: true }); // Redirect to landing page
+      showSuccess('Logged out successfully!');
+    } catch (err: any) {
+      console.error('Portal Logout: Unexpected error during signOut:', err);
+    } finally {
+      // 3. PRODUCTION BEST PRACTICE: Guaranteed State Clear & Redirect
+      // We clear client state and redirect in finally to ensure absolute reliability.
+
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+
+      console.log("Portal Logout: Client state cleared. Redirecting to /login...");
+
+      // 4. Robust Redirection: Support both React Router and hard fallback
+      try {
+        navigate("/login", { replace: true });
+
+        // Fallback: If for any reason navigation doesn't happen within a short window,
+        // (e.g. if the component is unmounting in a weird way), trigger a hard redirect.
+        setTimeout(() => {
+          if (window.location.pathname !== "/login") {
+            console.warn("Portal Logout: Navigate failed to change path. Using window.location fallback.");
+            window.location.href = "/login";
+          }
+        }, 100);
+      } catch (redirectError) {
+        console.error("Portal Logout: Navigate threw error, using hard fallback:", redirectError);
+        window.location.href = "/login";
+      }
+    }
   };
 
   return (

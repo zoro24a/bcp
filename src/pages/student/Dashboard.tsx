@@ -60,8 +60,9 @@ const StudentDashboard = () => {
   }, [user]);
 
   const totalRequests = studentRequests.length;
+  // USER REQUIREMENT: Do NOT show download button for "Ready for Issue"
   const approvedRequests = studentRequests.filter(
-    (req) => req.status === "Approved"
+    (req) => req.status === "Approved" || req.status === "Issued"
   );
   const pendingOrReturned = totalRequests - approvedRequests.length;
 
@@ -101,7 +102,7 @@ const StudentDashboard = () => {
 
     try {
       // All templates are now HTML, so always generate PDF from HTML content
-      const htmlContent = getCertificateHtml(request, studentDetails, template, true);
+      const htmlContent = getCertificateHtml(request, studentDetails, template);
       console.log("[StudentDashboard] Final HTML content for PDF generation:", htmlContent); // Debugging
       const fileName = `Bonafide-${studentDetails.register_number}.pdf`;
       await generatePdf(htmlContent, fileName);
@@ -212,37 +213,7 @@ const StudentDashboard = () => {
         </div>
 
         <div className="lg:col-span-2">
-          <h2 className="text-2xl font-bold mb-4">Ready for Download</h2>
-          {approvedRequests.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {approvedRequests.map((request, index) => (
-                <div key={request.id} className="animate-fade-in-up" style={{ animationDelay: `${0.6 + index * 0.1}s` }}>
-                  <Card className="glass-card">
-                    <CardHeader>
-                      <CardTitle className="text-lg">{request.type}</CardTitle>
-                      <CardDescription className="text-muted-foreground">
-                        Approved on {formatDateToIndian(request.created_at || request.date)}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button
-                        variant="secondary"
-                        className="w-full"
-                        onClick={() => handleDownload(request)}
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Certificate
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">
-              You have no approved certificates available for download.
-            </p>
-          )}
+          {/* Certificates are now issued by the Office. Direct download removed. */}
         </div>
       </div>
     </div>

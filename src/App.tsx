@@ -49,6 +49,7 @@ import PrincipalProfile from "@/pages/principal/Profile";
 import OfficeDashboard from "@/pages/office/Dashboard";
 import CertificatesReady from "@/pages/office/CertificatesReady";
 import OfficeProfile from "@/pages/office/Profile";
+import OfficeAllRequests from "@/pages/office/AllRequests";
 import OfficeLayout from "@/components/layouts/OfficeLayout";
 // Shared Pages
 
@@ -177,6 +178,7 @@ const AppRoutes = () => {
       } >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<OfficeDashboard />} />
+        <Route path="all-requests" element={<OfficeAllRequests />} />
         <Route path="certificates-ready" element={<CertificatesReady />} />
         <Route path="profile" element={<OfficeProfile />} />
       </Route>

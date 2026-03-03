@@ -36,10 +36,17 @@ const RequestDetailsView = ({ request, student }: RequestDetailsViewProps) => {
         </ProfileField>
         <ProfileField label="Tutor">{student.tutor_name || "N/A"}</ProfileField>
         <ProfileField label="HOD">{student.hod_name || "N/A"}</ProfileField>
+        <ProfileField label="Specialization">{request.specialization_snapshot || student.specialization || "N/A"}</ProfileField>
 
         <ProfileField label="Request Type">{request.type}</ProfileField>
         {request.sub_type && (
           <ProfileField label="Sub-type">{request.sub_type}</ProfileField>
+        )}
+        {request.company_block && (
+          <ProfileField label="Company / Organization">{request.company_block}</ProfileField>
+        )}
+        {request.duration_block && (
+          <ProfileField label="Duration / Timeframe">{request.duration_block}</ProfileField>
         )}
         <div className="md:col-span-2">
           <ProfileField label="Reason">{request.reason}</ProfileField>

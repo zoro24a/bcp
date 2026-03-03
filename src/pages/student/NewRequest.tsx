@@ -48,17 +48,31 @@ const NewRequest = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const companyBlock = formData.get("company_block") as string || undefined;
+    const durationBlock = formData.get("duration_block") as string || undefined;
+
     if (!type || !reason || !user?.id) {
       showError("Please fill in all required fields and ensure you are logged in.");
       return;
     }
 
+    const { fetchTutorByBatch } = await import("@/data/appData");
+    let tutorId = undefined;
+    if (studentDetails?.batch_id) {
+      const tutor = await fetchTutorByBatch(studentDetails.batch_id);
+      tutorId = tutor?.id;
+    }
+
     const newRequestPayload = {
       student_id: user.id,
+      tutor_id: tutorId,
       date: new Date().toISOString().split("T")[0],
       type,
       sub_type: subType,
       reason,
+      company_block: companyBlock,
+      duration_block: durationBlock,
       status: "Pending Tutor Approval" as const,
     };
 
@@ -181,6 +195,27 @@ const NewRequest = () => {
                 required
               />
             </div>
+
+            {(type === "Internship Application" || type === "Passport Application") && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="company-block">Company / Organization Name</Label>
+                  <Input
+                    id="company-block"
+                    placeholder="e.g., Google India"
+                    name="company_block"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="duration-block">Duration / Specific Dates</Label>
+                  <Input
+                    id="duration-block"
+                    placeholder="e.g., 2 Months (June-July)"
+                    name="duration_block"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
         <CardFooter className="border-t px-6 py-4">

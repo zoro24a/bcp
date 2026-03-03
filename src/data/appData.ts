@@ -17,8 +17,22 @@ import { FunctionsHttpError } from "@supabase/supabase-js";
 
 // This file will now contain functions to interact with Supabase.
 
-export const fetchRequests = async (): Promise<BonafideRequest[]> => {
-  const { data, error } = await supabase.from("requests").select("*");
+export const fetchRequests = async (status?: RequestStatus | RequestStatus[]): Promise<BonafideRequest[]> => {
+  let query = supabase.from("requests").select(`
+    *,
+    tutor:profiles!requests_tutor_id_fkey(name),
+    hod:profiles!requests_hod_id_fkey(name)
+  `);
+
+  if (status) {
+    if (Array.isArray(status)) {
+      query = query.in("status", status);
+    } else {
+      query = query.eq("status", status);
+    }
+  }
+
+  const { data, error } = await query;
   if (error) {
     console.error("Error fetching requests:", error);
     throw new Error("Failed to fetch requests: " + error.message);
@@ -68,7 +82,8 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
       parent_name,
       batch_id,
       tutor_id,
-      hod_id
+      hod_id,
+      specialization
     `)
     .eq("id", studentId)
     .maybeSingle();
@@ -85,6 +100,7 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
     batch_id: studentSpecificData?.batch_id,
     tutor_id: studentSpecificData?.tutor_id,
     hod_id: studentSpecificData?.hod_id,
+    specialization: studentSpecificData?.specialization,
   };
 
   const { batch_id, tutor_id, hod_id } = studentDetailsBase;
@@ -427,6 +443,36 @@ export const fetchProfileByNameAndRole = async (
   return data as Profile | null;
 };
 
+export const fetchTutorByBatch = async (batchId: string): Promise<Profile | null> => {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, name")
+    .eq("batch_id", batchId)
+    .eq("role", "tutor")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching tutor by batch:", error);
+    return null;
+  }
+  return data as unknown as Profile | null;
+};
+
+export const fetchHodByDepartment = async (departmentId: string): Promise<Profile | null> => {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, name")
+    .eq("department_id", departmentId)
+    .eq("role", "hod")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching HOD by department:", error);
+    return null;
+  }
+  return data as unknown as Profile | null;
+};
+
 
 export const fetchTemplates = async (): Promise<CertificateTemplate[]> => {
   const { data, error } = await supabase.from("templates").select("*");
@@ -463,6 +509,19 @@ export const updateRequestStatus = async (requestId: string, status: RequestStat
   }
   // Return the first element if data is an array, or null if empty
   return data?.[0] as BonafideRequest || null;
+};
+
+export const issueCertificate = async (requestId: string): Promise<BonafideRequest | null> => {
+  const { data, error } = await supabase.rpc("issue_certificate", {
+    request_id: requestId,
+  });
+
+  if (error) {
+    console.error("Error issuing certificate via RPC:", error);
+    showError("Failed to issue certificate: " + error.message);
+    return null;
+  }
+  return data as BonafideRequest;
 };
 
 export const updateRequest = async (requestId: string, updates: Partial<BonafideRequest>): Promise<BonafideRequest | null> => {

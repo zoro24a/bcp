@@ -39,36 +39,51 @@ export const getCertificateHtml = (
     himHer: isFemale ? "her" : "him"
   };
 
-  // Replace standard placeholders
-  content = content
-    .replace(/{studentName}/g, `${student.first_name} ${student.last_name || ''}`.trim())
-    .replace(/{studentId}/g, student.register_number)
-    .replace(/{purpose}/g, request.type)
-    .replace(/{subPurpose}/g, request.sub_type || '')
-    .replace(/{reason}/g, request.type)
-    .replace(/{detailedReason}/g, request.reason)
-    .replace(/{parentName}/g, student.parent_name || 'N/A')
-    .replace(/{department}/g, student.department_name || 'N/A')
-    .replace(/{batch}/g, student.batch_name || 'N/A')
-    .replace(/{currentSemester}/g, student.current_semester?.toString() || 'N/A')
-    .replace(/{date}/g, new Date().toLocaleDateString('en-GB'));
+  // Determine academic year (June boundary)
+  const dateObj = request.issued_at ? new Date(request.issued_at) : new Date();
+  const currentMonth = dateObj.getMonth() + 1;
+  const academicYear = currentMonth >= 6 ? dateObj.getFullYear() : dateObj.getFullYear() - 1;
 
+  // Placeholder replacement mapping
+  const replacements: Record<string, string> = {
+    "{studentName}": `${student.first_name} ${student.last_name || ''}`.trim(),
+    "{registerNumber}": student.register_number || "N/A",
+    "{studentId}": student.register_number || "N/A",
+    "{purpose}": request.type,
+    "{subPurpose}": request.sub_type || '',
+    "{reason}": request.type,
+    "{detailedReason}": request.reason,
+    "{parentName}": student.parent_name || 'N/A',
+    "{department}": student.department_name || 'N/A',
+    "{specialization}": request.specialization_snapshot || student.specialization || 'N/A',
+    "{batch}": student.batch_name || 'N/A',
+    "{currentSemester}": student.current_semester?.toString() || 'N/A',
+    "{certificateNo}": request.certificate_number || '<i>To be generated upon issue</i>',
+    "{certificateNumber}": request.certificate_number || '<i>To be generated upon issue</i>',
+    "{academicYear}": academicYear.toString(),
+    "{issuedAt}": request.issued_at ? new Date(request.issued_at).toLocaleDateString('en-GB') : '<i>To be generated upon issue</i>',
+    "{date}": new Date().toLocaleDateString('en-GB'),
+    "{companyBlock}": request.company_block || '<i>[Company Selection Required]</i>',
+    "{durationBlock}": request.duration_block || '<i>[Duration Selection Required]</i>',
+    "{salutation}": genderMap.salutation,
+    "{parentRelation}": genderMap.parentRelation,
+    "{heShe}": genderMap.heShe,
+    "{hisHer}": genderMap.hisHer,
+  };
 
-  // Replace automatic gender markers
+  // Perform replacements
+  Object.entries(replacements).forEach(([placeholder, value]) => {
+    // Escape special characters in placeholder for regex
+    const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    content = content.replace(new RegExp(escapedPlaceholder, "g"), value);
+  });
+
+  // Replace automatic gender markers (legacy support)
   content = content
     .replace(/Mr\/Ms/g, genderMap.salutation)
     .replace(/S\/o or D\/o/g, genderMap.parentRelation)
     .replace(/He\/She/g, genderMap.heShe)
-    .replace(/his\/her/g, genderMap.hisHer)
-    .replace(/\bHe\b/g, genderMap.heShe)
-    .replace(/\bhis\b/g, genderMap.hisHer);
-
-  // Explicit gender placeholders
-  content = content
-    .replace(/{salutation}/g, genderMap.salutation)
-    .replace(/{parentRelation}/g, genderMap.parentRelation)
-    .replace(/{heShe}/g, genderMap.heShe)
-    .replace(/{hisHer}/g, genderMap.hisHer);
+    .replace(/his\/her/g, genderMap.hisHer);
 
   return content;
 };

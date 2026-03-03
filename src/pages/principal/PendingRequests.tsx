@@ -56,7 +56,11 @@ const PrincipalPendingRequests = () => {
     try {
       const { data, error } = await supabase
         .from('requests')
-        .select('*')
+        .select(`
+          *,
+          tutor:profiles!requests_tutor_id_fkey(name),
+          hod:profiles!requests_hod_id_fkey(name)
+        `)
         .eq('status', 'Pending Principal Approval');
 
       if (error) {
@@ -105,8 +109,8 @@ const PrincipalPendingRequests = () => {
     }
 
     // New Workflow: Principal Approval -> Office
-    // Updates status to "Approved by Principal"
-    const updated = await updateRequestStatus(selectedRequest.id, "Approved by Principal");
+    // Updates status to "Ready for Issue"
+    const updated = await updateRequestStatus(selectedRequest.id, "Ready for Issue");
 
     if (updated) {
       showSuccess("Request approved and forwarded to Office.");
@@ -173,6 +177,8 @@ const PrincipalPendingRequests = () => {
                 <TableHead>Reg No.</TableHead>
                 <TableHead>Student Name</TableHead>
                 <TableHead>Department</TableHead>
+                <TableHead>Tutor</TableHead>
+                <TableHead>HOD</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -191,7 +197,9 @@ const PrincipalPendingRequests = () => {
                         {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
                       </TableCell>
                       <TableCell>{student?.department_name || "N/A"}</TableCell>
-                      <TableCell>{formatDateToIndian(request.date)}</TableCell>
+                      <TableCell>{request.tutor?.name || "N/A"}</TableCell>
+                      <TableCell>{request.hod?.name || "N/A"}</TableCell>
+                      <TableCell>{formatDateToIndian(request.created_at || request.date)}</TableCell>
                       <TableCell>{request.type}</TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" onClick={() => openReviewDialog(request)}>

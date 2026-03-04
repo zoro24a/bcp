@@ -53,8 +53,8 @@ const HodPendingRequests = () => {
           .from('requests')
           .select(`
             *,
-            tutor:profiles!requests_tutor_id_fkey(name),
-            hod:profiles!requests_hod_id_fkey(name)
+            tutor:profiles!requests_tutor_id_fkey(first_name, last_name, name),
+            hod:profiles!requests_hod_id_fkey(first_name, last_name, name)
           `)
           .in('status', ['Pending HOD Approval', 'Returned to HOD']);
 
@@ -179,7 +179,11 @@ const HodPendingRequests = () => {
                       </TableCell>
                       <TableCell>{student?.batch_name || "N/A"}</TableCell>
                       <TableCell>{student?.current_semester || "N/A"}</TableCell>
-                      <TableCell>{request.tutor?.name || "N/A"}</TableCell>
+                      <TableCell>
+                        {request.tutor?.first_name
+                          ? `${request.tutor.first_name} ${request.tutor.last_name || ''}`.trim()
+                          : request.tutor?.name || student?.tutor_name || "N/A"}
+                      </TableCell>
                       <TableCell>{formatDateToIndian(request.created_at || request.date)}</TableCell>
                       <TableCell>{request.type}</TableCell>
                       <TableCell className="text-right">

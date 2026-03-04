@@ -51,11 +51,11 @@ const PrincipalDashboard = () => {
 
       setTotalStaff((tutorCount || 0) + (hodCount || 0) + (adminCount || 0) + (principalCount || 0));
 
-      // Pending Requests (all statuses starting with 'Pending')
+      // Pending Requests (only those awaiting Principal approval)
       const { count: pendingReqCount, error: pendingReqError } = await supabase
         .from('requests')
         .select('id', { count: 'exact' })
-        .like('status', 'Pending%');
+        .eq('status', 'Pending Principal Approval');
       if (pendingReqError) showError("Error fetching pending requests count: " + pendingReqError.message);
       setPendingRequests(pendingReqCount || 0);
 

@@ -31,8 +31,8 @@ export interface BonafideRequest {
   certificate_number?: string; // New field for issued certificates
   tutor_id?: string; // UUID of the tutor profile
   hod_id?: string; // UUID of the HOD profile
-  tutor?: { name: string }; // Joined tutor name
-  hod?: { name: string }; // Joined HOD name
+  tutor?: { name: string; first_name?: string; last_name?: string }; // Joined tutor name
+  hod?: { name: string; first_name?: string; last_name?: string }; // Joined HOD name
   return_reason?: string;
   tutor_return_reason?: string;
   hod_return_reason?: string;
@@ -95,6 +95,7 @@ export interface Profile {
   role: "student" | "tutor" | "hod" | "admin" | "principal" | "office"; // Added office role
   gender?: "Male" | "Female"; // Added gender
 
+  name?: string; // Added name field
   department_id?: string; // For HODs, Tutors
   batch_id?: string; // For Students, Tutors
   departments?: Department; // Added for joined data

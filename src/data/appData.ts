@@ -20,8 +20,8 @@ import { FunctionsHttpError } from "@supabase/supabase-js";
 export const fetchRequests = async (status?: RequestStatus | RequestStatus[]): Promise<BonafideRequest[]> => {
   let query = supabase.from("requests").select(`
     *,
-    tutor:profiles!requests_tutor_id_fkey(name),
-    hod:profiles!requests_hod_id_fkey(name)
+    tutor:profiles!requests_tutor_id_fkey(first_name, last_name, name),
+    hod:profiles!requests_hod_id_fkey(first_name, last_name, name)
   `);
 
   if (status) {
@@ -54,27 +54,24 @@ export const fetchProfiles = async (role?: string): Promise<Profile[]> => {
 };
 
 export const fetchStudentDetails = async (studentId: string): Promise<StudentDetails | null> => {
-  console.log("Dyad Debug: Starting fetchStudentDetails for ID:", studentId);
+  console.log(`[Dyad Debug] Starting fetchStudentDetails for studentId: ${studentId}`);
 
   // 1. Fetch the base profile data for the student
   const { data: profileData, error: profileError } = await supabase
     .from("profiles")
-    .select("*")
+    .select("*, name") // Added name
     .eq("id", studentId)
     .single();
 
   if (profileError || !profileData) {
-    console.error("Dyad Debug: Error fetching student profile:", profileError);
-    // If no profile is found, we can't proceed. Return null as per function signature.
+    console.error(`[Dyad Debug] Error fetching student profile for ${studentId}:`, profileError);
     if (profileError?.code === 'PGRST116') {
-      console.error(`Dyad Debug: No profile found for student ID: ${studentId}`);
       return null;
     }
     throw new Error("Failed to fetch student profile: " + profileError?.message);
   }
-  console.log("Dyad Debug: Fetched profileData:", profileData);
 
-  // 2. Fetch the student-specific details using maybeSingle()
+  // 2. Fetch the student-specific details
   const { data: studentSpecificData, error: studentSpecificError } = await supabase
     .from("students")
     .select(`
@@ -82,25 +79,22 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
       parent_name,
       batch_id,
       tutor_id,
-      hod_id,
-      specialization
+      hod_id
     `)
     .eq("id", studentId)
     .maybeSingle();
 
   if (studentSpecificError) {
-    console.error("Dyad Debug: Error fetching student-specific data:", studentSpecificError);
+    console.error(`[Dyad Debug] Error fetching student-specific data for ${studentId}:`, studentSpecificError);
     throw new Error("Failed to fetch student-specific data: " + studentSpecificError.message);
   }
 
-  // Initialize student details with defaults if studentSpecificData is null
   const studentDetailsBase = {
     register_number: studentSpecificData?.register_number || 'N/A',
     parent_name: studentSpecificData?.parent_name,
     batch_id: studentSpecificData?.batch_id,
     tutor_id: studentSpecificData?.tutor_id,
     hod_id: studentSpecificData?.hod_id,
-    specialization: studentSpecificData?.specialization,
   };
 
   const { batch_id, tutor_id, hod_id } = studentDetailsBase;
@@ -116,80 +110,96 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
       .from("batches")
       .select(`*`)
       .eq("id", batch_id)
-      .maybeSingle(); // Use maybeSingle for robustness
+      .maybeSingle();
 
     if (batchError) {
-      console.warn("Dyad Debug: Error fetching batch details:", batchError);
+      console.warn(`[Dyad Debug] Error fetching batch ${batch_id}:`, batchError);
     } else {
       batch = batchData as Batch || null;
-      console.log("Dyad Debug: Fetched batchData:", batch);
 
-      // 3b. Fetch Department details separately
+      // 3b. Fetch Department details
       if (batch?.department_id) {
         const { data: departmentData, error: departmentError } = await supabase
           .from("departments")
-          .select(`name`)
+          .select(`id, name`)
           .eq("id", batch.department_id)
           .maybeSingle();
 
         if (departmentError) {
-          console.warn("Dyad Debug: Error fetching department details:", departmentError);
+          console.warn(`[Dyad Debug] Error fetching dept ${batch.department_id}:`, departmentError);
         } else {
           department = departmentData as Department || null;
-          console.log("Dyad Debug: Fetched departmentData:", department);
         }
       }
     }
-  } else {
-    console.log("Dyad Debug: No batch_id found for student.");
   }
 
   // 4. Fetch Tutor profile
   if (tutor_id) {
     const { data: tutorData, error: tutorError } = await supabase
       .from("profiles")
-      .select(`id, first_name, last_name`)
+      .select(`id, first_name, last_name, name, role`) // Added role
       .eq("id", tutor_id)
       .maybeSingle();
     if (tutorError) {
-      console.warn("Dyad Debug: Error fetching tutor profile:", tutorError);
+      console.warn(`[Dyad Debug] Error fetching tutor profile ${tutor_id}:`, tutorError);
     } else {
       tutor = tutorData as Profile || null;
-      console.log("Dyad Debug: Fetched tutorData:", tutor);
     }
-  } else {
-    console.log("Dyad Debug: No tutor_id found for student.");
   }
 
   // 5. Fetch HOD profile
   if (hod_id) {
     const { data: hodData, error: hodError } = await supabase
       .from("profiles")
-      .select(`id, first_name, last_name`)
+      .select(`id, first_name, last_name, name, role`) // Added role
       .eq("id", hod_id)
       .maybeSingle();
     if (hodError) {
-      console.warn("Dyad Debug: Error fetching HOD profile:", hodError);
+      console.warn(`[Dyad Debug] Error fetching HOD profile ${hod_id}:`, hodError);
     } else {
       hod = hodData as Profile || null;
-      console.log("Dyad Debug: Fetched hodData:", hod);
     }
-  } else {
-    console.log("Dyad Debug: No hod_id found for student.");
+  } else if (batch?.department_id) {
+    // RESOLVE DEPARTMENTAL HOD FALLBACK
+    const { data: hodData, error: hodError } = await supabase
+      .from("profiles")
+      .select(`id, first_name, last_name, name, role`)
+      .eq("department_id", batch.department_id)
+      .ilike("role", "hod")
+      .limit(1)
+      .maybeSingle();
+
+    if (hodError) {
+      console.warn(`[Dyad Debug] Error fetching departmental HOD for Dept: ${batch.department_id}:`, hodError);
+    } else if (hodData) {
+      hod = hodData as unknown as Profile || null;
+      console.log(`[Dyad Debug] Resolved departmental HOD for student ${studentId}:`, hod?.name || hod?.first_name || "Unknown");
+    } else {
+      console.log(`[Dyad Debug] No HOD found for Dept ID: ${batch.department_id}`);
+    }
   }
+
+  // Helper to format name robustly
+  const formatName = (p: any) => {
+    if (!p) return undefined;
+    if (p.name) return p.name;
+    if (p.first_name) return `${p.first_name} ${p.last_name || ''}`.trim();
+    return undefined;
+  };
 
   return {
     ...profileData,
-    ...studentDetailsBase, // Includes register_number, parent_name, etc.
+    ...studentDetailsBase,
     batch_id: batch?.id,
     batch_name: batch ? `${batch.name} ${batch.section || ''}`.trim() : undefined,
     current_semester: batch?.current_semester,
     department_id: department?.id || batch?.department_id,
     department_name: department?.name,
     tutor_id: tutor?.id,
-    tutor_name: tutor ? `${tutor.first_name} ${tutor.last_name || ''}`.trim() : undefined,
+    tutor_name: formatName(tutor),
     hod_id: hod?.id,
-    hod_name: hod ? `${hod.first_name} ${hod.last_name || ''}`.trim() : undefined,
+    hod_name: formatName(hod),
   } as StudentDetails;
 };
 
@@ -446,31 +456,33 @@ export const fetchProfileByNameAndRole = async (
 export const fetchTutorByBatch = async (batchId: string): Promise<Profile | null> => {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, name")
+    .select("id, first_name, last_name, name, role") // Added role
     .eq("batch_id", batchId)
     .eq("role", "tutor")
+    .limit(1)
     .maybeSingle();
 
   if (error) {
-    console.error("Error fetching tutor by batch:", error);
+    console.error(`[Dyad Debug] Error fetching tutor by batch ${batchId}:`, error);
     return null;
   }
-  return data as unknown as Profile | null;
+  return data as Profile | null;
 };
 
 export const fetchHodByDepartment = async (departmentId: string): Promise<Profile | null> => {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, name")
+    .select("id, first_name, last_name, name, role") // Added role
     .eq("department_id", departmentId)
     .eq("role", "hod")
+    .limit(1)
     .maybeSingle();
 
   if (error) {
-    console.error("Error fetching HOD by department:", error);
+    console.error(`[Dyad Debug] Error fetching HOD by department ${departmentId}:`, error);
     return null;
   }
-  return data as unknown as Profile | null;
+  return data as Profile | null;
 };
 
 
@@ -512,16 +524,36 @@ export const updateRequestStatus = async (requestId: string, status: RequestStat
 };
 
 export const issueCertificate = async (requestId: string): Promise<BonafideRequest | null> => {
-  const { data, error } = await supabase.rpc("issue_certificate", {
+  // 1. Call the RPC to issue the certificate
+  const { error: rpcError } = await supabase.rpc("issue_certificate", {
     request_id: requestId,
   });
 
-  if (error) {
-    console.error("Error issuing certificate via RPC:", error);
-    showError("Failed to issue certificate: " + error.message);
+  if (rpcError) {
+    console.error("Error issuing certificate via RPC:", rpcError);
+    showError("Failed to issue certificate: " + rpcError.message);
     return null;
   }
-  return data as BonafideRequest;
+
+  // 2. EXPLICIT REFETCH: Ensure we have the LATEST row with the certificate_number
+  // We include joined data just like in fetchRequests
+  const { data: refetchedData, error: refetchError } = await supabase
+    .from("requests")
+    .select(`
+      *,
+      tutor:profiles!requests_tutor_id_fkey(first_name, last_name, name),
+      hod:profiles!requests_hod_id_fkey(first_name, last_name, name)
+    `)
+    .eq("id", requestId)
+    .single();
+
+  if (refetchError) {
+    console.error("Error refetching issued certificate:", refetchError);
+    // Even if refetch fails, the certificate WAS issued, so we might return partially
+    return null;
+  }
+
+  return refetchedData as BonafideRequest;
 };
 
 export const updateRequest = async (requestId: string, updates: Partial<BonafideRequest>): Promise<BonafideRequest | null> => {

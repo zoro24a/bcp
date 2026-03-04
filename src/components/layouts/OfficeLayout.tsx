@@ -22,6 +22,11 @@ const navItems: NavItem[] = [
         icon: <CheckCircle className="h-4 w-4" />,
     },
     {
+        title: "Issued Certificates",
+        href: "/office/issued-certificates",
+        icon: <FileCheck className="h-4 w-4" />,
+    },
+    {
         title: "Profile",
         href: "/office/profile",
         icon: <User className="h-4 w-4" />,

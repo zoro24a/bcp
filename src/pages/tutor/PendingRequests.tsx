@@ -81,8 +81,8 @@ const TutorPendingRequests = () => {
           .from('requests')
           .select(`
             *,
-            tutor:profiles!requests_tutor_id_fkey(name),
-            hod:profiles!requests_hod_id_fkey(name)
+            tutor:profiles!requests_tutor_id_fkey(first_name, last_name, name),
+            hod:profiles!requests_hod_id_fkey(first_name, last_name, name)
           `)
           .in('status', ['Pending Tutor Approval', 'Returned to Tutor'])
           .in('student_id', tutorStudentsIds);
@@ -132,30 +132,42 @@ const TutorPendingRequests = () => {
   const handleForward = async () => {
     if (!selectedRequest || !selectedTemplate) return;
 
-    const { fetchHodByDepartment, fetchStudentDetails, updateRequest } = await import("@/data/appData");
-    let hodId = undefined;
+    const { fetchHodByDepartment, fetchStudentDetails } = await import("@/data/appData");
 
     // Get student details to find department
     const student = await fetchStudentDetails(selectedRequest.student_id);
-    if (student?.department_id) {
-      const hod = await fetchHodByDepartment(student.department_id);
-      hodId = hod?.id;
+    if (!student?.department_id) {
+      showError("Could not determine student's department. Please contact admin.");
+      return;
     }
 
-    const updated = await updateRequest(selectedRequest.id, {
-      status: "Pending HOD Approval",
-      template_id: selectedTemplate,
-      hod_id: hodId
-    });
+    // Resolve the correct HOD profile ID
+    const hod = await fetchHodByDepartment(student.department_id);
+    if (!hod || !hod.id) {
+      showError(`No HOD assigned for the ${student.department_name || 'student\'s'} department. Cannot forward.`);
+      return;
+    }
 
-    if (updated) {
-      showSuccess(`Request ${selectedRequest.id} forwarded to HOD.`);
+    // Update request atomically: both status and hod_id must be set
+    const { data: updatedData, error: updateError } = await supabase
+      .from('requests')
+      .update({
+        status: "Pending HOD Approval",
+        template_id: selectedTemplate,
+        hod_id: hod.id
+      })
+      .eq('id', selectedRequest.id)
+      .select();
+
+    if (!updateError && updatedData && updatedData.length > 0) {
+      showSuccess(`Request forwarded to HOD.`);
       fetchTutorRequests(); // Refresh list
       setIsForwardOpen(false);
       setSelectedRequest(null);
       setSelectedTemplate("");
     } else {
-      showError("Failed to forward request.");
+      console.error("Update error:", updateError);
+      showError("Failed to forward request: " + (updateError?.message || "Unknown error"));
     }
   };
 
@@ -232,7 +244,11 @@ const TutorPendingRequests = () => {
                         {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
                       </TableCell>
                       <TableCell>{student?.current_semester || "N/A"}</TableCell>
-                      <TableCell>{request.hod?.name || "N/A"}</TableCell>
+                      <TableCell>
+                        {request.hod?.first_name
+                          ? `${request.hod.first_name} ${request.hod.last_name || ''}`.trim()
+                          : request.hod?.name || student?.hod_name || "N/A"}
+                      </TableCell>
                       <TableCell>{formatDateToIndian(request.created_at || request.date)}</TableCell>
                       <TableCell>{request.type}</TableCell>
                       <TableCell className="text-right">

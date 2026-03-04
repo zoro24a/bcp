@@ -156,12 +156,6 @@ const MyRequests = () => {
                         Certificate Issued. Please collect from office.
                       </Badge>
                     )}
-                    {request.status === "Ready for Issue" && (
-                      <div className="flex flex-col items-end gap-1">
-                        <Badge variant="default">Ready for Issue</Badge>
-                        <span className="text-blue-600 font-medium text-xs">Approved. Please collect from office.</span>
-                      </div>
-                    )}
                     {request.status === "Approved by Principal" && (
                       <span className="text-muted-foreground text-sm">Processing at Office</span>
                     )}

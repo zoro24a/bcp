@@ -197,8 +197,8 @@ const PrincipalPendingRequests = () => {
                         {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
                       </TableCell>
                       <TableCell>{student?.department_name || "N/A"}</TableCell>
-                      <TableCell>{request.tutor?.name || "N/A"}</TableCell>
-                      <TableCell>{request.hod?.name || "N/A"}</TableCell>
+                      <TableCell>{request.tutor?.name || student?.tutor_name || "N/A"}</TableCell>
+                      <TableCell>{request.hod?.name || student?.hod_name || "N/A"}</TableCell>
                       <TableCell>{formatDateToIndian(request.created_at || request.date)}</TableCell>
                       <TableCell>{request.type}</TableCell>
                       <TableCell className="text-right">

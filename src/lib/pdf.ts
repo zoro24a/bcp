@@ -58,25 +58,39 @@ export const getCertificateHtml = (
     "{specialization}": request.specialization_snapshot || student.specialization || 'N/A',
     "{batch}": student.batch_name || 'N/A',
     "{currentSemester}": student.current_semester?.toString() || 'N/A',
-    "{certificateNo}": request.certificate_number || '<i>To be generated upon issue</i>',
-    "{certificateNumber}": request.certificate_number || '<i>To be generated upon issue</i>',
+    "{certificateNo}": request.certificate_number || 'To be generated upon issue',
+    "{certificateNumber}": request.certificate_number || 'To be generated upon issue',
+    "{certificate_no}": request.certificate_number || 'To be generated upon issue',
+    "{certificate_number}": request.certificate_number || 'To be generated upon issue',
+    "{sl_no}": request.certificate_number || 'To be generated upon issue',
+    "{slNo}": request.certificate_number || 'To be generated upon issue',
     "{academicYear}": academicYear.toString(),
-    "{issuedAt}": request.issued_at ? new Date(request.issued_at).toLocaleDateString('en-GB') : '<i>To be generated upon issue</i>',
+    "{issuedAt}": request.issued_at ? new Date(request.issued_at).toLocaleDateString('en-GB') : 'To be generated upon issue',
     "{date}": new Date().toLocaleDateString('en-GB'),
-    "{companyBlock}": request.company_block || '<i>[Company Selection Required]</i>',
-    "{durationBlock}": request.duration_block || '<i>[Duration Selection Required]</i>',
+    "{companyBlock}": request.company_block || '[Company Selection Required]',
+    "{durationBlock}": request.duration_block || '[Duration Selection Required]',
     "{salutation}": genderMap.salutation,
     "{parentRelation}": genderMap.parentRelation,
     "{heShe}": genderMap.heShe,
     "{hisHer}": genderMap.hisHer,
   };
 
-  // Perform replacements
+  // Perform replacements with flexible regex (handles spaces like { certificateNo })
   Object.entries(replacements).forEach(([placeholder, value]) => {
-    // Escape special characters in placeholder for regex
-    const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    content = content.replace(new RegExp(escapedPlaceholder, "g"), value);
+    // Strip the braces for the generic name
+    const genericName = placeholder.slice(1, -1);
+    // Create a regex that is case-insensitive and allows whitespace inside braces
+    const flexibleRegex = new RegExp(`\\{\\s*${genericName}\\s*\\}`, "gi");
+    content = content.replace(flexibleRegex, value);
   });
+
+  // FINAL SAFETY FALLBACK: If certificate_number exists but the placeholder "To be generated upon issue" 
+  // is still in the text, replace it directly. This handles cases where the template 
+  // has hardcoded the fallback text instead of a placeholder.
+  if (request.status === 'Issued' && request.certificate_number) {
+    // Replace the literal string "To be generated upon issue" (with or without tags)
+    content = content.replace(/To be generated upon issue/gi, request.certificate_number);
+  }
 
   // Replace automatic gender markers (legacy support)
   content = content

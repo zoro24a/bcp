@@ -35,7 +35,11 @@ const RequestDetailsView = ({ request, student }: RequestDetailsViewProps) => {
           {student.current_semester || "N/A"}
         </ProfileField>
         <ProfileField label="Tutor">{student.tutor_name || "N/A"}</ProfileField>
-        <ProfileField label="HOD">{student.hod_name || "N/A"}</ProfileField>
+        <ProfileField label="HOD">
+          {request.hod?.first_name
+            ? `${request.hod.first_name} ${request.hod.last_name || ''}`.trim()
+            : request.hod?.name || student.hod_name || "N/A"}
+        </ProfileField>
         <ProfileField label="Specialization">{request.specialization_snapshot || student.specialization || "N/A"}</ProfileField>
 
         <ProfileField label="Request Type">{request.type}</ProfileField>

@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fetchStudentDetails, fetchTemplates, updateRequestStatus, fetchRequests } from "@/data/appData";
+import { fetchStudentDetails, fetchTemplates, updateRequestStatus, fetchRequests, issueCertificate } from "@/data/appData";
 import { BonafideRequest, StudentDetails, CertificateTemplate } from "@/lib/types";
 import { showSuccess, showError } from "@/utils/toast";
 import { getCertificateHtml, generatePdf } from "@/lib/pdf";
@@ -96,24 +96,28 @@ const CertificatesReady = () => {
     const handleIssue = async () => {
         if (!selectedRequest) return;
 
-        const { issueCertificate } = await import("@/data/appData");
         const updated = await issueCertificate(selectedRequest.id);
 
         if (updated) {
-            showSuccess(`Certificate Issued: ${updated.certificate_number}`);
+            if (updated.certificate_number) {
+                showSuccess(`Certificate Issued: ${updated.certificate_number}`);
+            } else {
+                showError("Certificate Issued but Serial Number is MISSING in response. Check database.");
+            }
 
             // Refresh preview with the newly generated certificate number
             const student = studentDetailsMap.get(updated.student_id);
             const template = templates.find(t => t.id === updated.template_id);
+
             if (student && template) {
+                // IMPORTANT: Ensure we use the 'updated' row which contains the actual certificate_number
                 const html = getCertificateHtml(updated, student, template);
                 setPreviewHtml(html);
                 setSelectedRequest(updated);
             }
 
-            fetchData(); // Refresh the list in the background
-        } else {
-            // Error handling is inside issueCertificate
+            // Remove the issued request from the local list
+            setRequests(prev => prev.filter(r => r.id !== updated.id));
         }
     };
 
@@ -176,8 +180,8 @@ const CertificatesReady = () => {
                                                 {student ? `${student.first_name} ${student.last_name || ''}`.trim() : "N/A"}
                                             </TableCell>
                                             <TableCell>{student?.department_name || "N/A"}</TableCell>
-                                            <TableCell>{request.tutor?.name || "N/A"}</TableCell>
-                                            <TableCell>{request.hod?.name || "N/A"}</TableCell>
+                                            <TableCell>{request.tutor?.name || student?.tutor_name || "N/A"}</TableCell>
+                                            <TableCell>{request.hod?.name || student?.hod_name || "N/A"}</TableCell>
                                             <TableCell>{request.type}</TableCell>
                                             <TableCell className="text-right flex justify-end gap-2">
                                                 <Button size="sm" variant="outline" onClick={() => handlePreview(request)}>

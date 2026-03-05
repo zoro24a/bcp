@@ -21,7 +21,8 @@ const HodDashboard = () => {
         // Fetch batches for HOD's department (RLS will filter by department_id)
         const { data: batchesData, error: batchesError } = await supabase
           .from('batches')
-          .select('id, status');
+          .select('id, status')
+          .eq('department_id', profile.department_id);
 
         if (batchesError) {
           showError("Error fetching batches for department: " + batchesError.message);
@@ -59,7 +60,7 @@ const HodDashboard = () => {
         } else {
           setPendingRequests(requestsData?.length || 0);
         }
-        
+
         setLoading(false);
       }
     };

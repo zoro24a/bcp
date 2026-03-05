@@ -25,11 +25,11 @@ import {
 import { fetchStudentDetails, fetchTemplates, fetchRequests } from "@/data/appData";
 import { BonafideRequest, StudentDetails, CertificateTemplate } from "@/lib/types";
 import { showError } from "@/utils/toast";
-import { getCertificateHtml, generatePdf } from "@/lib/pdf";
+import { getCertificateHtml, generatePdf, printHtml } from "@/lib/pdf";
 import { formatDateToIndian } from "@/lib/utils";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Eye, Download, FileCheck } from "lucide-react";
+import { Eye, Download, FileCheck, Printer } from "lucide-react";
 
 const IssuedCertificates = () => {
     const { user } = useSession();
@@ -99,6 +99,12 @@ const IssuedCertificates = () => {
 
         const html = getCertificateHtml(request, student, template);
         await generatePdf(html, `Certificate-${request.certificate_number || student.register_number}.pdf`);
+    };
+
+    const handlePrint = () => {
+        if (previewHtml) {
+            printHtml(previewHtml);
+        }
     };
 
     if (loading) {
@@ -183,6 +189,9 @@ const IssuedCertificates = () => {
                     </ScrollArea>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Close</Button>
+                        <Button variant="secondary" onClick={handlePrint} className="gap-2">
+                            <Printer className="h-4 w-4" /> Print
+                        </Button>
                         <Button onClick={() => selectedRequest && handleDownload(selectedRequest)} className="gap-2">
                             <Download className="h-4 w-4" /> Download PDF
                         </Button>

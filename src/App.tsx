@@ -140,7 +140,6 @@ const AppRoutes = () => {
         <Route path="pending-requests" element={<TutorPendingRequests />} />
         <Route path="request-history" element={<TutorRequestHistory />} />
         <Route path="students" element={<TutorStudents />} />
-        <Route path="template-management" element={<AdminTemplateManagement />} />
         <Route path="profile" element={<TutorProfile />} />
       </Route>
 

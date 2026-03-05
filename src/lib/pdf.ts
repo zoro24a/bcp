@@ -175,3 +175,58 @@ export const generatePdf = async (htmlContent: string, fileName: string) => {
     }
   }
 };
+
+/**
+ * Triggers the browser print dialog for the given HTML content.
+ * @param htmlContent The HTML content to print.
+ */
+export const printHtml = (htmlContent: string) => {
+  if (!htmlContent || htmlContent.trim() === "") {
+    console.error("[printHtml] Error: HTML content is empty.");
+    return;
+  }
+
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
+  if (!doc) {
+    console.error("[printHtml] Error: Could not access iframe document.");
+    return;
+  }
+
+  doc.open();
+  doc.write(`
+    <html>
+      <head>
+        <title>Print Certificate</title>
+        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+        <style>
+          @page { size: auto; margin: 20mm; }
+          body { font-family: sans-serif; }
+          .prose { max-width: none; }
+        </style>
+      </head>
+      <body class="p-8">
+        <div class="prose max-w-none">
+          \${htmlContent}
+        </div>
+        <script>
+          window.onload = () => {
+            window.print();
+            setTimeout(() => {
+              window.parent.document.body.removeChild(window.frameElement);
+            }, 100);
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  doc.close();
+};

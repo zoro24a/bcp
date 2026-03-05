@@ -6,7 +6,6 @@ import {
   History,
   FileClock,
   Users,
-  FileText,
 } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import { NavItem } from "@/lib/types";
@@ -32,11 +31,6 @@ const navItems: NavItem[] = [
     title: "My Students",
     href: "/tutor/students",
     icon: <Users className="h-4 w-4" />,
-  },
-  {
-    title: "Template Management",
-    href: "/tutor/template-management",
-    icon: <FileText className="h-4 w-4" />,
   },
   {
     title: "Profile",

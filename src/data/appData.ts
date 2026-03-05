@@ -316,19 +316,38 @@ export const fetchTutorDetails = async (tutorId: string): Promise<TutorDetails |
     }
   }
 
-  // 2. Separately fetch the batch(es) assigned to this tutor
-  const { data: assignedBatches, error: batchesError } = await supabase
-    .from("batches")
-    .select(`name, section`);
+  // 2. Separately fetch the batch specifically assigned to this tutor
+  let batchAssignedName: string | undefined = undefined;
 
-  if (batchesError) {
-    console.warn("Error fetching assigned batches for tutor:", batchesError);
+  if (profileData.batch_id) {
+    const { data: batchData, error: batchError } = await supabase
+      .from("batches")
+      .select(`name, section`)
+      .eq("id", profileData.batch_id)
+      .maybeSingle();
+
+    if (batchError) {
+      console.warn("Error fetching assigned batch for tutor via batch_id:", batchError);
+    } else if (batchData) {
+      batchAssignedName = `${batchData.name} ${batchData.section || ''}`.trim();
+    }
   }
 
-  // Combine batch names into a single string if multiple, or just the first one
-  const batchAssignedName = assignedBatches && assignedBatches.length > 0
-    ? assignedBatches.map(b => `${b.name} ${b.section || ''}`.trim()).join(', ')
-    : undefined;
+  // Fallback: If no batch name yet, check if any batch has this tutor assigned via tutor_id
+  if (!batchAssignedName) {
+    const { data: batchData, error: batchError } = await supabase
+      .from("batches")
+      .select(`name, section`)
+      .eq("tutor_id", tutorId)
+      .limit(1)
+      .maybeSingle();
+
+    if (batchError) {
+      console.warn("Error fetching assigned batch for tutor via tutor_id:", batchError);
+    } else if (batchData) {
+      batchAssignedName = `${batchData.name} ${batchData.section || ''}`.trim();
+    }
+  }
 
   return {
     ...profileData,

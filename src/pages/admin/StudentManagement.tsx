@@ -202,11 +202,26 @@ const StudentManagement = () => {
       const totalStudentsToUpload = parsedStudents.length;
 
       for (let i = 0; i < totalStudentsToUpload; i++) {
-        const student = parsedStudents[i];
-        const rowNumber = i + 2; // +1 for 0-index to 1-index, +1 for header row
+        const student = parsedStudents[i] as any;
+        const rowNumber = i + 2;
 
-        if (!student.email || !student.register_number || !student.first_name || !student.department_name || !student.batch_name || !student.password) {
-          errors.push(`Row ${rowNumber}: Missing required fields (email, register_number, first_name, department_name, batch_name, password).`);
+        // Check for all required fields
+        const requiredFields = [
+          "username", "email", "phone_number", "register_number", "name",
+          "gender", "parent_name", "department_name", "batch_name",
+          "tutor_name", "hod_name", "password"
+        ];
+
+        const missingFields = requiredFields.filter(field => !student[field]);
+        if (missingFields.length > 0) {
+          errors.push(`Row ${rowNumber}: Missing required fields (${missingFields.join(", ")}).`);
+          continue;
+        }
+
+        // Gender Validation
+        const validGenders = ["Male", "Female", "Other"];
+        if (!validGenders.includes(student.gender)) {
+          errors.push(`Row ${rowNumber}: Invalid gender value in uploaded file. (Use: Male, Female, or Other)`);
           continue;
         }
 
@@ -220,8 +235,8 @@ const StudentManagement = () => {
           }
         }
 
-        // 2. Resolve Batch ID (and create if not exists)
-        const batchNameParts = student.batch_name.split(' '); // e.g., "2024-2028 A" -> ["2024-2028", "A"]
+        // 2. Resolve Batch ID
+        const batchNameParts = student.batch_name.split(' ');
         const batchName = batchNameParts[0];
         const section = batchNameParts.length > 1 ? batchNameParts[1] : "No Section";
 
@@ -236,8 +251,8 @@ const StudentManagement = () => {
           const createdBatch = await createBatch({
             name: batchName,
             section: section === "No Section" ? null : section,
-            tutor_id: null, // Tutors assigned separately
-            total_sections: 1, // Default to 1, can be updated later
+            tutor_id: null,
+            total_sections: 1,
             student_count: 0,
             status: "Active",
             current_semester: currentSemester,
@@ -251,46 +266,48 @@ const StudentManagement = () => {
             continue;
           }
           batch = createdBatch;
-          // Refresh batches list to include the newly created batch for subsequent students
           setBatches(prev => [...prev, createdBatch]);
         }
 
-        // 3. Resolve Tutor ID (optional)
+        // 3. Resolve Tutor ID
         let tutorId: string | undefined = undefined;
-        if (student.tutor_name) {
-          const [tutorFirstName, ...tutorLastNameParts] = student.tutor_name.split(' ');
-          const tutorLastName = tutorLastNameParts.join(' ') || undefined;
-          const tutorProfile = await fetchProfileByNameAndRole(tutorFirstName, tutorLastName, 'tutor');
-          if (tutorProfile) {
-            tutorId = tutorProfile.id;
-          } else {
-            errors.push(`Row ${rowNumber}: Tutor '${student.tutor_name}' not found. Student will be unassigned from tutor.`);
-          }
+        const [tutorFirstName, ...tutorLastNameParts] = student.tutor_name.split(' ');
+        const tutorLastName = tutorLastNameParts.join(' ') || undefined;
+        const tutorProfile = await fetchProfileByNameAndRole(tutorFirstName, tutorLastName, 'tutor');
+        if (tutorProfile) {
+          tutorId = tutorProfile.id;
+        } else {
+          errors.push(`Row ${rowNumber}: Tutor '${student.tutor_name}' not found.`);
+          continue;
         }
 
-        // 4. Resolve HOD ID (optional)
+        // 4. Resolve HOD ID
         let hodId: string | undefined = undefined;
-        if (student.hod_name) {
-          const [hodFirstName, ...hodLastNameParts] = student.hod_name.split(' ');
-          const hodLastName = hodLastNameParts.join(' ') || undefined;
-          const hodProfile = await fetchProfileByNameAndRole(hodFirstName, hodLastName, 'hod');
-          if (hodProfile) {
-            hodId = hodProfile.id;
-          } else {
-            errors.push(`Row ${rowNumber}: HOD '${student.hod_name}' not found. Student will be unassigned from HOD.`);
-          }
+        const [hodFirstName, ...hodLastNameParts] = student.hod_name.split(' ');
+        const hodLastName = hodLastNameParts.join(' ') || undefined;
+        const hodProfile = await fetchProfileByNameAndRole(hodFirstName, hodLastName, 'hod');
+        if (hodProfile) {
+          hodId = hodProfile.id;
+        } else {
+          errors.push(`Row ${rowNumber}: HOD '${student.hod_name}' not found.`);
+          continue;
         }
 
         // 5. Create Student
+        // Split name into first_name and last_name for profile
+        const nameParts = student.name.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ') || "";
+
         const studentProfileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'> = {
-          first_name: student.first_name,
-          last_name: student.last_name,
-          username: student.username || `${student.first_name}.${student.register_number}`,
+          first_name: firstName,
+          last_name: lastName,
+          username: student.username,
           email: student.email,
           phone_number: student.phone_number,
           department_id: department.id,
           batch_id: batch.id,
-          gender: student.gender || "Male",
+          gender: student.gender,
           role: 'student',
         };
 
@@ -337,7 +354,7 @@ const StudentManagement = () => {
 
   const handleAddSingleStudent = async () => {
     console.log("Dyad Debug: handleAddSingleStudent called. editingStudent:", editingStudent?.id);
-    
+
     const missingFields = [];
     if (!newStudentData.first_name) missingFields.push("First Name");
     if (!newStudentData.email) missingFields.push("Email");
@@ -360,8 +377,8 @@ const StudentManagement = () => {
 
     // Pre-check for duplicates if creating a new student
     if (!editingStudent) {
-      const existingStudent = allStudents.find(s => 
-        s.email?.toLowerCase() === newStudentData.email?.toLowerCase() || 
+      const existingStudent = allStudents.find(s =>
+        s.email?.toLowerCase() === newStudentData.email?.toLowerCase() ||
         s.register_number === newStudentData.register_number
       );
       if (existingStudent) {
@@ -487,7 +504,7 @@ const StudentManagement = () => {
       tutor_id: student.tutor_id,
       hod_id: student.hod_id,
     });
-    
+
     if (student.batch_name) {
       const parts = student.batch_name.split(' ');
       const years = parts[0].split('-');
@@ -495,7 +512,7 @@ const StudentManagement = () => {
       setSelectedEndYear(years[1]);
       setSelectedSection(parts[1] || "No Section");
     }
-    
+
     setNewStudentPassword("");
     setIsAddSingleStudentDialogOpen(true);
   };

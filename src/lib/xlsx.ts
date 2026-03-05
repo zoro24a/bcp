@@ -2,33 +2,33 @@ import * as xlsx from "xlsx";
 import { StudentDetails } from "./types";
 
 const studentTemplateHeaders = [
-  "first_name",
-  "last_name",
   "username",
   "email",
   "phone_number",
   "register_number",
+  "name",
+  "gender",
   "parent_name",
   "department_name",
-  "tutor_name (Optional)",
-  "hod_name (Optional)",
-  "batch_name (e.g., 2024-2028 A)", // Keep the example in the header for user clarity
+  "batch_name (e.g., 2024-2028 A)",
+  "tutor_name",
+  "hod_name",
   "password",
 ];
 
 // Internal mapping keys used for JSON conversion
 const internalKeys = [
-  "first_name",
-  "last_name",
   "username",
   "email",
   "phone_number",
   "register_number",
+  "name",
+  "gender",
   "parent_name",
   "department_name",
+  "batch_name",
   "tutor_name",
   "hod_name",
-  "batch_name",
   "password",
 ];
 

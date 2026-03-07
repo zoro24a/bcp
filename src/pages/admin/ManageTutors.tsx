@@ -216,7 +216,7 @@ const ManageTutors = () => {
           <DialogTrigger asChild>
             <Button onClick={openAddDialog}>Add New Tutor</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingTutor ? "Edit Tutor Details" : "Add New Tutor"}

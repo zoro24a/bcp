@@ -591,7 +591,7 @@ const StudentManagement = () => {
                 Bulk Upload Students
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Bulk Upload Students</DialogTitle>
                 Upload an XLSX or CSV file containing student data. Please use the provided template.
@@ -634,7 +634,7 @@ const StudentManagement = () => {
                 Add Single Student
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingStudent ? "Edit Student" : "Add New Student"}</DialogTitle>
                 <DialogDescription>

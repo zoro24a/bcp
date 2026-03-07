@@ -602,6 +602,46 @@ export const createDepartment = async (newDepartment: Omit<Department, 'id' | 'c
   return data as Department;
 };
 
+export const updateDepartment = async (id: string, updates: Partial<Department>): Promise<Department | null> => {
+  const { data, error } = await supabase.from("departments").update(updates).eq("id", id).select().single();
+  if (error) {
+    console.error("Error updating department:", error);
+    return null;
+  }
+  return data as Department;
+};
+
+export const updateHodAssignment = async (departmentId: string, newHodId: string): Promise<boolean> => {
+  try {
+    // 1. Demote any current HOD of this department to tutor
+    const { error: demoteError } = await supabase
+      .from("profiles")
+      .update({ role: "tutor" })
+      .eq("department_id", departmentId)
+      .eq("role", "hod");
+
+    if (demoteError) {
+      console.warn("Nont-critical error: Could not demote previous HOD:", demoteError.message);
+    }
+
+    // 2. Promote the new user to HOD for this department
+    const { error: promoteError } = await supabase
+      .from("profiles")
+      .update({ role: "hod", department_id: departmentId })
+      .eq("id", newHodId);
+
+    if (promoteError) {
+      console.error("Error promoting new HOD:", promoteError);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Critical error in updateHodAssignment:", err);
+    return false;
+  }
+};
+
 export const createBatch = async (newBatch: Omit<Batch, 'id' | 'created_at'>): Promise<Batch | null> => {
   const { data, error } = await supabase.from("batches").insert(newBatch).select().single();
   if (error) {

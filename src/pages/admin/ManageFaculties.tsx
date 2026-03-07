@@ -225,7 +225,7 @@ const ManageFaculties = () => {
           <DialogTrigger asChild>
             <Button>Add New HOD</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingFaculty ? "Edit HOD Details" : "Add New HOD"}

@@ -99,6 +99,9 @@ export const getCertificateHtml = (
     .replace(/He\/She/g, genderMap.heShe)
     .replace(/his\/her/g, genderMap.hisHer);
 
+  // Remove Principal Signature and College Seal images (broken placeholders)
+  content = content.replace(/<img[^>]*alt=["'](Principal Signature|College Seal)["'][^>]*>/gi, '');
+
   return content;
 };
 
@@ -215,7 +218,7 @@ export const printHtml = (htmlContent: string) => {
       </head>
       <body class="p-8">
         <div class="prose max-w-none">
-          \${htmlContent}
+          ${htmlContent}
         </div>
         <script>
           window.onload = () => {

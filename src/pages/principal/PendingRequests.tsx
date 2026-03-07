@@ -265,7 +265,7 @@ const PrincipalPendingRequests = () => {
           setPreviewStudentDetails(null);
         }
       }}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0"> {/* Added max-h and flex-col */}
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0"> {/* Added max-h and flex-col */}
           <DialogHeader className="p-6 pb-2"> {/* Added padding */}
             <DialogTitle>Approve Certificate</DialogTitle>
             <DialogDescription>
@@ -333,7 +333,7 @@ const PrincipalPendingRequests = () => {
           setReturnReason("");
         }
       }}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Reason for Return</DialogTitle>
             <DialogDescription>

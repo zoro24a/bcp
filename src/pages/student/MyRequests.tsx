@@ -258,7 +258,7 @@ const EditRequestDialog = ({ request, onSuccess }: EditRequestDialogProps) => {
           Edit
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Request</DialogTitle>
           <DialogDescription>

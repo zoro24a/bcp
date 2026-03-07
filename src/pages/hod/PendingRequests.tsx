@@ -207,7 +207,7 @@ const HodPendingRequests = () => {
       </Card>
 
       <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Review Request</DialogTitle>
             <DialogDescription>
@@ -240,7 +240,7 @@ const HodPendingRequests = () => {
       </Dialog>
 
       <Dialog open={isReturnOpen} onOpenChange={setIsReturnOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Reason for Return (to Tutor)</DialogTitle>
             <DialogDescription>

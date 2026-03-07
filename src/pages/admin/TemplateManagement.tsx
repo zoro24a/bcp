@@ -217,7 +217,7 @@ const TemplateManagement = () => {
       </CardContent>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-0">
           <DialogHeader className="p-6 pb-2">
             <DialogTitle>
               {dialogMode === "create" ? "Create New" : "Edit"} Template

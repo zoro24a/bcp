@@ -272,7 +272,7 @@ const TutorPendingRequests = () => {
       </Card>
 
       <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Review Request</DialogTitle>
             <DialogDescription>

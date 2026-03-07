@@ -239,8 +239,7 @@ const BatchManagement = () => {
 
     if (updated) {
       showSuccess(
-        `Semester details for "${editingBatch.name} - ${
-          editingBatch.section || ""
+        `Semester details for "${editingBatch.name} - ${editingBatch.section || ""
         }" updated successfully.`
       );
       setIsSemesterDialogOpen(false);
@@ -337,7 +336,7 @@ const BatchManagement = () => {
             <DialogTrigger asChild>
               <Button>Add New Batch</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Batch</DialogTitle>
                 <DialogDescription>
@@ -551,7 +550,7 @@ const BatchManagement = () => {
       </Card>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Edit Batch: {editingBatch?.name}
@@ -610,7 +609,7 @@ const BatchManagement = () => {
         open={isSemesterDialogOpen}
         onOpenChange={setIsSemesterDialogOpen}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Edit Semester: {editingBatch?.name} - {editingBatch?.section}

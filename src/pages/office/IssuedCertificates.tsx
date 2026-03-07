@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -22,21 +22,36 @@ import {
     DialogFooter,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { fetchStudentDetails, fetchTemplates, fetchRequests } from "@/data/appData";
-import { BonafideRequest, StudentDetails, CertificateTemplate } from "@/lib/types";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { fetchStudentDetails, fetchTemplates, fetchRequests, fetchDepartments } from "@/data/appData";
+import { BonafideRequest, StudentDetails, CertificateTemplate, Department } from "@/lib/types";
 import { showError } from "@/utils/toast";
 import { getCertificateHtml, generatePdf, printHtml } from "@/lib/pdf";
 import { formatDateToIndian } from "@/lib/utils";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Eye, Download, FileCheck, Printer } from "lucide-react";
+import { Eye, Download, Printer, ArrowUpDown, Filter, RotateCcw } from "lucide-react";
 
 const IssuedCertificates = () => {
     const { user } = useSession();
     const [requests, setRequests] = useState<BonafideRequest[]>([]);
     const [studentDetailsMap, setStudentDetailsMap] = useState<Map<string, StudentDetails>>(new Map());
     const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
+    const [departments, setDepartments] = useState<Department[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Filter and Sort states
+    const [deptFilter, setDeptFilter] = useState<string>("all");
+    const [dateFilter, setDateFilter] = useState<string>("");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
     const [selectedRequest, setSelectedRequest] = useState<BonafideRequest | null>(null);
     const [previewHtml, setPreviewHtml] = useState<string>("");
@@ -45,8 +60,15 @@ const IssuedCertificates = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const issuedRequests = await fetchRequests("Issued");
+            const [issuedRequests, fetchedDepts, fetchedTemplates] = await Promise.all([
+                fetchRequests("Issued"),
+                fetchDepartments(),
+                fetchTemplates()
+            ]);
+
             setRequests(issuedRequests);
+            setDepartments(fetchedDepts);
+            setTemplates(fetchedTemplates);
 
             if (issuedRequests.length > 0) {
                 const uniqueStudentIds = Array.from(new Set(issuedRequests.map(r => r.student_id)));
@@ -59,9 +81,6 @@ const IssuedCertificates = () => {
                 });
                 setStudentDetailsMap(newMap);
             }
-
-            const fetchedTemplates = await fetchTemplates();
-            setTemplates(fetchedTemplates);
         } catch (err: any) {
             showError("Failed to load data: " + err.message);
         } finally {
@@ -72,6 +91,45 @@ const IssuedCertificates = () => {
     useEffect(() => {
         fetchData();
     }, [user]);
+
+    const filteredAndSortedRequests = useMemo(() => {
+        let result = [...requests];
+
+        // 1. Filter by Department
+        if (deptFilter !== "all") {
+            result = result.filter(req => {
+                const student = studentDetailsMap.get(req.student_id);
+                return student?.department_id === deptFilter;
+            });
+        }
+
+        // 2. Filter by Date (Issue Date)
+        if (dateFilter) {
+            result = result.filter(req => {
+                const reqDate = req.issued_at || req.created_at || req.date;
+                return reqDate.startsWith(dateFilter);
+            });
+        }
+
+        // 3. Sort by Issue Date
+        result.sort((a, b) => {
+            const dateA = new Date(a.issued_at || a.created_at || a.date).getTime();
+            const dateB = new Date(b.issued_at || b.created_at || b.date).getTime();
+            return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+        });
+
+        return result;
+    }, [requests, studentDetailsMap, deptFilter, dateFilter, sortOrder]);
+
+    const resetFilters = () => {
+        setDeptFilter("all");
+        setDateFilter("");
+        setSortOrder("desc");
+    };
+
+    const toggleSort = () => {
+        setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    };
 
     const handlePreview = async (request: BonafideRequest) => {
         const student = studentDetailsMap.get(request.student_id);
@@ -113,10 +171,43 @@ const IssuedCertificates = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold">Issued Certificates</h1>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <h1 className="text-3xl font-bold">Issued Certificates</h1>
+                <Button variant="outline" size="sm" onClick={resetFilters} className="w-fit gap-2">
+                    <RotateCcw className="h-4 w-4" /> Reset Filters
+                </Button>
+            </div>
+
             <Card className="glass-card">
                 <CardHeader>
-                    <CardTitle>History of Issued Certificates</CardTitle>
+                    <div className="flex flex-col md:flex-row md:items-end gap-4">
+                        <div className="flex-1 space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <Filter className="h-4 w-4" /> Filter by Department
+                            </Label>
+                            <Select value={deptFilter} onValueChange={setDeptFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Departments" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Departments</SelectItem>
+                                    {departments.map((dept) => (
+                                        <SelectItem key={dept.id} value={dept.id}>
+                                            {dept.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                            <Label>Filter by Issue Date</Label>
+                            <Input
+                                type="date"
+                                value={dateFilter}
+                                onChange={(e) => setDateFilter(e.target.value)}
+                            />
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -126,13 +217,17 @@ const IssuedCertificates = () => {
                                 <TableHead>Student Name</TableHead>
                                 <TableHead>Register Number</TableHead>
                                 <TableHead>Department</TableHead>
-                                <TableHead>Issue Date</TableHead>
+                                <TableHead onClick={toggleSort} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                                    <div className="flex items-center gap-2">
+                                        Issue Date <ArrowUpDown className="h-4 w-4" />
+                                    </div>
+                                </TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {requests.length > 0 ? (
-                                requests.map((request) => {
+                            {filteredAndSortedRequests.length > 0 ? (
+                                filteredAndSortedRequests.map((request) => {
                                     const student = studentDetailsMap.get(request.student_id);
                                     return (
                                         <TableRow key={request.id}>
@@ -161,7 +256,7 @@ const IssuedCertificates = () => {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                                        No issued certificates found.
+                                        No issued certificates found matching the current filters.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -174,7 +269,7 @@ const IssuedCertificates = () => {
                 setIsPreviewOpen(open);
                 if (!open) setSelectedRequest(null);
             }}>
-                <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+                <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Certificate Preview</DialogTitle>
                         <DialogDescription>

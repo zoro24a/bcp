@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useMemo } from "react";
 import {
     Card,
     CardContent,
@@ -15,39 +14,44 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-    DialogDescription,
-} from "@/components/ui/dialog";
-import { fetchStudentDetails, fetchTemplates, fetchRequests } from "@/data/appData";
-import { BonafideRequest, StudentDetails, CertificateTemplate } from "@/lib/types";
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { fetchStudentDetails, fetchRequests, fetchDepartments } from "@/data/appData";
+import { BonafideRequest, StudentDetails, Department } from "@/lib/types";
 import { showError } from "@/utils/toast";
-import { getCertificateHtml, generatePdf } from "@/lib/pdf";
 import { formatDateToIndian } from "@/lib/utils";
 import { useSession } from "@/components/auth/SessionContextProvider";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { LayoutDashboard, FileCheck, User, CheckCircle, Eye, Download } from "lucide-react";
+import { ArrowUpDown, RotateCcw, Filter } from "lucide-react";
 
 const OfficeAllRequests = () => {
     const { user } = useSession();
     const [requests, setRequests] = useState<BonafideRequest[]>([]);
     const [studentDetailsMap, setStudentDetailsMap] = useState<Map<string, StudentDetails>>(new Map());
-    const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
+    const [departments, setDepartments] = useState<Department[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const [selectedRequest, setSelectedRequest] = useState<BonafideRequest | null>(null);
-    const [previewHtml, setPreviewHtml] = useState<string>("");
-    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    // Filter and Sort states
+    const [deptFilter, setDeptFilter] = useState<string>("all");
+    const [dateFilter, setDateFilter] = useState<string>("");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Requirement 1: Use database-level filtering
-            const pendingIssue = await fetchRequests("Ready for Issue");
+            const [pendingIssue, fetchedDepts] = await Promise.all([
+                fetchRequests("Ready for Issue"),
+                fetchDepartments()
+            ]);
+
             setRequests(pendingIssue);
+            setDepartments(fetchedDepts);
 
             if (pendingIssue.length > 0) {
                 const uniqueStudentIds = Array.from(new Set(pendingIssue.map(r => r.student_id)));
@@ -60,9 +64,6 @@ const OfficeAllRequests = () => {
                 });
                 setStudentDetailsMap(newMap);
             }
-
-            const fetchedTemplates = await fetchTemplates();
-            setTemplates(fetchedTemplates);
         } catch (err: any) {
             showError("Failed to load data: " + err.message);
         } finally {
@@ -74,27 +75,43 @@ const OfficeAllRequests = () => {
         fetchData();
     }, [user]);
 
-    const handlePreview = async (request: BonafideRequest) => {
-        const student = studentDetailsMap.get(request.student_id);
-        const template = templates.find(t => t.id === request.template_id);
+    const filteredAndSortedRequests = useMemo(() => {
+        let result = [...requests];
 
-        if (!student || !template) {
-            showError("Missing student details or template.");
-            return;
+        // 1. Filter by Department
+        if (deptFilter !== "all") {
+            result = result.filter(req => {
+                const student = studentDetailsMap.get(req.student_id);
+                return student?.department_id === deptFilter;
+            });
         }
 
-        const html = getCertificateHtml(request, student, template);
-        setPreviewHtml(html);
-        setSelectedRequest(request);
-        setIsPreviewOpen(true);
+        // 2. Filter by Date
+        if (dateFilter) {
+            result = result.filter(req => {
+                const reqDate = req.created_at || req.date;
+                return reqDate.startsWith(dateFilter);
+            });
+        }
+
+        // 3. Sort by Approved Date
+        result.sort((a, b) => {
+            const dateA = new Date(a.created_at || a.date).getTime();
+            const dateB = new Date(b.created_at || b.date).getTime();
+            return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+        });
+
+        return result;
+    }, [requests, studentDetailsMap, deptFilter, dateFilter, sortOrder]);
+
+    const resetFilters = () => {
+        setDeptFilter("all");
+        setDateFilter("");
+        setSortOrder("desc");
     };
 
-    const handleDownload = async () => {
-        if (!selectedRequest || !previewHtml) return;
-        const student = studentDetailsMap.get(selectedRequest.student_id);
-        if (student) {
-            await generatePdf(previewHtml, `Certificate-${student.register_number}.pdf`);
-        }
+    const toggleSort = () => {
+        setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
     };
 
     if (loading) {
@@ -103,10 +120,43 @@ const OfficeAllRequests = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold">All Requests (Ready for Issue)</h1>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <h1 className="text-3xl font-bold">All Requests (Ready for Issue)</h1>
+                <Button variant="outline" size="sm" onClick={resetFilters} className="w-fit gap-2">
+                    <RotateCcw className="h-4 w-4" /> Reset Filters
+                </Button>
+            </div>
+
             <Card className="glass-card">
                 <CardHeader>
-                    <CardTitle>Requests for Collection</CardTitle>
+                    <div className="flex flex-col md:flex-row md:items-end gap-4">
+                        <div className="flex-1 space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <Filter className="h-4 w-4" /> Filter by Department
+                            </Label>
+                            <Select value={deptFilter} onValueChange={setDeptFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Departments" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Departments</SelectItem>
+                                    {departments.map((dept) => (
+                                        <SelectItem key={dept.id} value={dept.id}>
+                                            {dept.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                            <Label>Filter by Date</Label>
+                            <Input
+                                type="date"
+                                value={dateFilter}
+                                onChange={(e) => setDateFilter(e.target.value)}
+                            />
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -115,14 +165,17 @@ const OfficeAllRequests = () => {
                                 <TableHead>Student Name</TableHead>
                                 <TableHead>Register Number</TableHead>
                                 <TableHead>Course</TableHead>
-                                <TableHead>Approved Date</TableHead>
+                                <TableHead onClick={toggleSort} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                                    <div className="flex items-center gap-2">
+                                        Approved Date <ArrowUpDown className="h-4 w-4" />
+                                    </div>
+                                </TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {requests.length > 0 ? (
-                                requests.map((request) => {
+                            {filteredAndSortedRequests.length > 0 ? (
+                                filteredAndSortedRequests.map((request) => {
                                     const student = studentDetailsMap.get(request.student_id);
                                     return (
                                         <TableRow key={request.id}>
@@ -139,18 +192,13 @@ const OfficeAllRequests = () => {
                                                     {request.status}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                <Button size="sm" variant="outline" onClick={() => handlePreview(request)} className="gap-2">
-                                                    <Eye className="h-4 w-4" /> Preview & Download
-                                                </Button>
-                                            </TableCell>
                                         </TableRow>
                                     );
                                 })
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                                        No requests with status "Ready for Issue" found.
+                                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                                        No requests found matching the current filters.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -158,32 +206,6 @@ const OfficeAllRequests = () => {
                     </Table>
                 </CardContent>
             </Card>
-
-            <Dialog open={isPreviewOpen} onOpenChange={(open) => {
-                setIsPreviewOpen(open);
-                if (!open) setSelectedRequest(null);
-            }}>
-                <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
-                    <DialogHeader>
-                        <DialogTitle>Certificate Preview</DialogTitle>
-                        <DialogDescription>
-                            Review the details below. Only downloading is permitted on this page.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="flex-1 p-4 border rounded bg-white p-8">
-                        <div
-                            className="bg-white text-black min-h-[400px]"
-                            dangerouslySetInnerHTML={{ __html: previewHtml }}
-                        />
-                    </ScrollArea>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Close</Button>
-                        <Button onClick={handleDownload} className="gap-2">
-                            <Download className="h-4 w-4" /> Download Certificate
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 };

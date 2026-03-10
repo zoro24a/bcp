@@ -57,11 +57,15 @@ const NewRequest = () => {
       return;
     }
 
-    const { fetchTutorByBatch } = await import("@/data/appData");
+    const { resolveTutorForRequest } = await import("@/data/appData");
     let tutorId = undefined;
-    if (studentDetails?.batch_id) {
-      const tutor = await fetchTutorByBatch(studentDetails.batch_id);
-      tutorId = tutor?.id;
+    if (studentDetails?.batch_id && studentDetails.current_semester) {
+      const resolvedTutorId = await resolveTutorForRequest(
+        studentDetails.batch_id,
+        studentDetails.section || "No Section",
+        studentDetails.current_semester
+      );
+      tutorId = resolvedTutorId;
     }
 
     const newRequestPayload = {

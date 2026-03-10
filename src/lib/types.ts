@@ -93,7 +93,7 @@ export interface Profile {
   phone_number?: string;
   avatar_url?: string;
   role: "student" | "tutor" | "hod" | "admin" | "principal" | "office"; // Added office role
-  gender?: "Male" | "Female"; // Added gender
+  gender?: "Male" | "Female" | "Other"; // Added gender
 
   name?: string; // Added name field
   department_id?: string; // For HODs, Tutors
@@ -115,6 +115,7 @@ export interface StudentDetails extends Profile {
   tutor_name?: string; // Joined from profiles table
   hod_name?: string; // Joined from profiles table
   current_semester?: number; // Joined from batches table
+  section?: string; // Added field
   specialization?: string; // Added field
 }
 
@@ -142,4 +143,18 @@ export interface AdminListUsersOptions {
   search?: string;
   sortBy?: 'email' | 'phone' | 'created_at' | 'last_sign_in_at' | 'role' | 'updated_at';
   sortOrder?: 'asc' | 'desc';
+}
+
+export interface TutorAssignment {
+  id: string;
+  batch_id: string;
+  section: string;
+  semester: number;
+  tutor_id: string;
+  academic_year: string;
+  created_at?: string;
+  updated_at?: string;
+  // Joined data
+  tutor?: Profile;
+  batch?: Batch;
 }

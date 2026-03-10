@@ -11,8 +11,6 @@ const studentTemplateHeaders = [
   "parent_name",
   "department_name",
   "batch_name (e.g., 2024-2028 A)",
-  "tutor_name",
-  "hod_name",
   "password",
 ];
 
@@ -27,8 +25,6 @@ const internalKeys = [
   "parent_name",
   "department_name",
   "batch_name",
-  "tutor_name",
-  "hod_name",
   "password",
 ];
 
@@ -92,6 +88,71 @@ export const parseStudentFile = (file: File): Promise<Partial<StudentDetails & {
     reader.onerror = (error) => {
       reject(error);
     };
+    reader.readAsArrayBuffer(file);
+  });
+};
+
+const tutorTemplateHeaders = [
+  "name",
+  "email",
+  "phone_number",
+  "department_name",
+  "password",
+];
+
+const tutorInternalKeys = [
+  "name",
+  "email",
+  "phone_number",
+  "department_name",
+  "password",
+];
+
+/**
+ * Generates and downloads an XLSX template for tutor bulk upload.
+ */
+export const downloadTutorTemplate = () => {
+  const worksheet = xlsx.utils.aoa_to_sheet([tutorTemplateHeaders]);
+  const workbook = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(workbook, worksheet, "Tutors");
+  xlsx.writeFile(workbook, "tutor_upload_template.xlsx");
+};
+
+/**
+ * Parses an uploaded XLSX file for tutors.
+ */
+export const parseTutorFile = (file: File): Promise<any[]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = event.target?.result;
+        const workbook = xlsx.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+
+        const json = xlsx.utils.sheet_to_json<any>(worksheet, {
+          header: tutorInternalKeys,
+          range: 1,
+          raw: true,
+        });
+
+        const cleanedJson = json.map(row => {
+          const cleanedRow: any = {};
+          for (const key in row) {
+            const value = (row as any)[key];
+            cleanedRow[key] = typeof value === 'string' ? value.trim() : value;
+          }
+          return cleanedRow;
+        });
+
+        resolve(cleanedJson);
+      } catch (error) {
+        console.error("Error parsing tutor file:", error);
+        reject(new Error("Failed to parse tutor file."));
+      }
+    };
+    reader.onerror = (error) => reject(error);
     reader.readAsArrayBuffer(file);
   });
 };

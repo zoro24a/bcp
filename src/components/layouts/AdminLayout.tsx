@@ -12,12 +12,12 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard className="h-4 w-4" />,
   },
   {
-    title: "Student Management",
-    href: "/admin/student-management",
-    icon: <Users className="h-4 w-4" />,
+    title: "Department Management",
+    href: "/admin/department-management",
+    icon: <Building className="h-4 w-4" />,
   },
   {
-    title: "Manage Faculties",
+    title: "Manage HODs",
     href: "/admin/manage-faculties",
     icon: <Users className="h-4 w-4" />,
   },
@@ -27,14 +27,19 @@ const navItems: NavItem[] = [
     icon: <Briefcase className="h-4 w-4" />,
   },
   {
-    title: "Department Management",
-    href: "/admin/department-management",
-    icon: <Building className="h-4 w-4" />,
+    title: "Tutor Assign",
+    href: "/admin/tutor-assignment",
+    icon: <PenTool className="h-4 w-4" />,
   },
   {
     title: "Template Management",
     href: "/admin/template-management",
     icon: <FileText className="h-4 w-4" />,
+  },
+  {
+    title: "Student Management",
+    href: "/admin/student-management",
+    icon: <Users className="h-4 w-4" />,
   },
   {
     title: "Profile",

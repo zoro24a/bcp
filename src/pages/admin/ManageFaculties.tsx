@@ -150,17 +150,17 @@ const ManageFaculties = () => {
       if (editingFaculty) {
         const updated = await updateHod(editingFaculty.id, facultyData);
         if (!updated) {
-          showError("Failed to update faculty details.");
+          showError("Failed to update HOD details.");
           return;
         }
 
         if (values.password) {
           const passwordUpdated = await updateUserPassword(editingFaculty.id, values.password);
           if (!passwordUpdated) {
-            showError("Failed to update faculty password.");
+            showError("Failed to update HOD password.");
           }
         }
-        showSuccess("Faculty details updated successfully.");
+        showSuccess("HOD details updated successfully.");
       } else {
         if (!values.password) {
           showError("Password is required for new HODs.");
@@ -168,10 +168,10 @@ const ManageFaculties = () => {
         }
         const created = await createHod({ ...facultyData, role: 'hod' }, values.password);
         if (!created) {
-          showError("Failed to add new faculty.");
+          showError("Failed to add new HOD.");
           return;
         }
-        showSuccess("New faculty added successfully.");
+        showSuccess("New HOD added successfully.");
       }
 
       setIsAddEditDialogOpen(false);
@@ -188,10 +188,10 @@ const ManageFaculties = () => {
   const handleDelete = async (facultyId: string, facultyName: string) => {
     const deleted = await deleteHod(facultyId);
     if (deleted) {
-      showSuccess(`Faculty "${facultyName}" removed successfully.`);
+      showSuccess(`HOD "${facultyName}" removed successfully.`);
       fetchAllData();
     } else {
-      showError("Failed to remove faculty.");
+      showError("Failed to remove HOD.");
     }
   };
 
@@ -199,10 +199,10 @@ const ManageFaculties = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Loading Faculties...</CardTitle>
+          <CardTitle>Loading HODs...</CardTitle>
         </CardHeader>
         <CardContent>
-          <p>Please wait while we fetch faculty data.</p>
+          <p>Please wait while we fetch HOD data.</p>
         </CardContent>
       </Card>
     );
@@ -211,7 +211,7 @@ const ManageFaculties = () => {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Manage Faculties (HODs)</CardTitle>
+        <CardTitle>Manage HODs</CardTitle>
         <Dialog
           open={isAddEditDialogOpen}
           onOpenChange={(isOpen) => {
@@ -223,12 +223,12 @@ const ManageFaculties = () => {
           }}
         >
           <DialogTrigger asChild>
-            <Button>Add New HOD</Button>
+            <Button>Add HOD</Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {editingFaculty ? "Edit HOD Details" : "Add New HOD"}
+                {editingFaculty ? "Edit HOD Details" : "Add HOD"}
               </DialogTitle>
             </DialogHeader>
             <Form {...form}>

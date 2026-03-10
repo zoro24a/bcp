@@ -22,6 +22,7 @@ import AdminManageFaculties from "@/pages/admin/ManageFaculties";
 import AdminManageTutors from "@/pages/admin/ManageTutors";
 import AdminDepartmentManagement from "@/pages/admin/DepartmentManagement";
 import AdminTemplateManagement from "@/pages/admin/TemplateManagement";
+import AdminTutorAssignment from "@/pages/admin/TutorAssignment";
 import AdminProfile from "@/pages/admin/Profile";
 // Student Pages
 import StudentDashboard from "@/pages/student/Dashboard";
@@ -112,6 +113,7 @@ const AppRoutes = () => {
         <Route path="manage-faculties" element={<AdminManageFaculties />} />
         <Route path="manage-tutors" element={<AdminManageTutors />} />
         <Route path="department-management" element={<AdminDepartmentManagement />} />
+        <Route path="tutor-assignment" element={<AdminTutorAssignment />} />
         <Route path="template-management" element={<AdminTemplateManagement />} />
         <Route path="profile" element={<AdminProfile />} />
       </Route>

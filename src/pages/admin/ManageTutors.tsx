@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, EyeOff, MoreHorizontal } from "lucide-react";
+import { Eye, EyeOff, MoreHorizontal, FilePlus, FileUp, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,16 +58,19 @@ import {
   createTutor,
   updateTutor,
   deleteTutor,
-  updateUserPassword, // New import
+  updateUserPassword,
+  fetchDepartmentByName,
 } from "@/data/appData";
 import { Profile, Department, Batch } from "@/lib/types";
 import { showSuccess, showError } from "@/utils/toast";
+import { downloadTutorTemplate, parseTutorFile } from "@/lib/xlsx";
 
 const ManageTutors = () => {
   const [tutors, setTutors] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [editingTutor, setEditingTutor] = useState<Profile | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   // Removed selectedBatchId state
@@ -171,6 +174,74 @@ const ManageTutors = () => {
     }
   };
 
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await parseTutorFile(file);
+      if (!data || data.length === 0) {
+        showError("The file is empty or invalid.");
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const row of data) {
+        if (!row.email || !row.name || !row.department_name) {
+          errorCount++;
+          continue;
+        }
+
+        const department = await fetchDepartmentByName(row.department_name);
+        if (!department) {
+          errorCount++;
+          continue;
+        }
+
+        // Split name into first and last name
+        const nameParts = row.name.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : "";
+
+        const tutorProfileData = {
+          first_name: firstName,
+          last_name: lastName,
+          username: row.username || `${firstName.toLowerCase()}.${Math.floor(Math.random() * 1000)}`,
+          email: row.email,
+          phone_number: row.phone_number || "",
+          department_id: department.id,
+          role: 'tutor' as const,
+        };
+
+        const password = row.password || "Temp@123"; // Default password if none provided
+        console.log(`[Dyad Debug] Processing Row for tutor: ${row.email}`);
+        const created = await createTutor(tutorProfileData, password);
+
+        if (created) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        showSuccess(`Successfully imported ${successCount} tutors.`);
+        fetchAllData();
+      }
+      if (errorCount > 0) {
+        showError(`Failed to import ${errorCount} tutors. Check data consistency.`);
+      }
+      setIsBulkUploadOpen(false);
+    } catch (error: any) {
+      showError(error.message || "Failed to parse file.");
+    } finally {
+      // Clear the input
+      e.target.value = "";
+    }
+  };
+
   // Helper function to find assigned batches for display
   const getAssignedBatchesDisplay = (tutorId: string) => {
     const assigned = batches.filter(b => b.tutor_id === tutorId);
@@ -202,138 +273,185 @@ const ManageTutors = () => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Manage Staff (Tutors)</CardTitle>
-        <Dialog
-          open={isAddEditDialogOpen}
-          onOpenChange={(isOpen) => {
-            setIsAddEditDialogOpen(isOpen);
-            if (!isOpen) {
-              setEditingTutor(null);
-              setTutorPassword(""); // Clear password on dialog close
-              setShowTutorPassword(false); // Reset password visibility
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button onClick={openAddDialog}>Add New Tutor</Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingTutor ? "Edit Tutor Details" : "Add New Tutor"}
-              </DialogTitle>
-              <DialogDescription>
-                {editingTutor ? "Update the details for this tutor." : "Fill in the details to add a new tutor to the system. Batch assignment is managed separately in Batch Management."}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSave}>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="first_name">First Name</Label>
+        <div className="flex items-center gap-2">
+          <Dialog open={isBulkUploadOpen} onOpenChange={setIsBulkUploadOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <FileUp className="h-4 w-4" />
+                Bulk Upload
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Bulk Upload Tutors</DialogTitle>
+                <DialogDescription>
+                  Upload an Excel or CSV file containing tutor details.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-6 py-4">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Step 1: Download Template</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={downloadTutorTemplate}
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="tutor-file-upload">Step 2: Upload File</Label>
                     <Input
-                      id="first_name"
-                      name="first_name"
-                      defaultValue={editingTutor?.first_name || ""}
+                      id="tutor-file-upload"
+                      type="file"
+                      accept=".xlsx, .xls, .csv"
+                      onChange={handleBulkUpload}
+                    />
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={isAddEditDialogOpen}
+            onOpenChange={(isOpen) => {
+              setIsAddEditDialogOpen(isOpen);
+              if (!isOpen) {
+                setEditingTutor(null);
+                setTutorPassword(""); // Clear password on dialog close
+                setShowTutorPassword(false); // Reset password visibility
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button onClick={openAddDialog} className="flex items-center gap-2">
+                <FilePlus className="h-4 w-4" />
+                Add New Tutor
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingTutor ? "Edit Tutor Details" : "Add New Tutor"}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingTutor ? "Update the details for this tutor." : "Fill in the details to add a new tutor to the system. Batch assignment is managed separately in Batch Management."}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSave}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="first_name">First Name</Label>
+                      <Input
+                        id="first_name"
+                        name="first_name"
+                        defaultValue={editingTutor?.first_name || ""}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="last_name">Last Name</Label>
+                      <Input
+                        id="last_name"
+                        name="last_name"
+                        defaultValue={editingTutor?.last_name || ""}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      name="username"
+                      defaultValue={editingTutor?.username || ""}
                       required
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="last_name">Last Name</Label>
-                    <Input
-                      id="last_name"
-                      name="last_name"
-                      defaultValue={editingTutor?.last_name || ""}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    name="username"
-                    defaultValue={editingTutor?.username || ""}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Select
-                    value={selectedDepartmentId}
-                    onValueChange={setSelectedDepartmentId}
-                    required
-                  >
-                    <SelectTrigger id="department">
-                      <SelectValue placeholder="Select Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {/* Removed Batch Assignment fields */}
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    defaultValue={editingTutor?.email || ""}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone_number">Phone Number</Label>
-                  <Input
-                    id="phone_number"
-                    name="phone_number"
-                    defaultValue={editingTutor?.phone_number || ""}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password">Password {editingTutor ? "(Leave blank to keep current)" : ""}</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      name="password"
-                      type={showTutorPassword ? "text" : "password"}
-                      value={tutorPassword}
-                      onChange={(e) => setTutorPassword(e.target.value)}
-                      required={!editingTutor} // Required only for new tutors
-                      autoComplete="new-password"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-primary/10"
-                      onClick={() => setShowTutorPassword((prev) => !prev)}
+                    <Label htmlFor="department">Department</Label>
+                    <Select
+                      value={selectedDepartmentId}
+                      onValueChange={setSelectedDepartmentId}
+                      required
                     >
-                      {showTutorPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                      <span className="sr-only">Toggle password visibility</span>
-                    </Button>
+                      <SelectTrigger id="department">
+                        <SelectValue placeholder="Select Department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Removed Batch Assignment fields */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      defaultValue={editingTutor?.email || ""}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="phone_number">Phone Number</Label>
+                    <Input
+                      id="phone_number"
+                      name="phone_number"
+                      defaultValue={editingTutor?.phone_number || ""}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="password">Password {editingTutor ? "(Leave blank to keep current)" : ""}</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showTutorPassword ? "text" : "password"}
+                        value={tutorPassword}
+                        onChange={(e) => setTutorPassword(e.target.value)}
+                        required={!editingTutor} // Required only for new tutors
+                        autoComplete="new-password"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-primary/10"
+                        onClick={() => setShowTutorPassword((prev) => !prev)}
+                      >
+                        {showTutorPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                        <span className="sr-only">Toggle password visibility</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button type="submit">Save</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <Button type="submit">Save</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>

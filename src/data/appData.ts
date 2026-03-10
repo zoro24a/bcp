@@ -11,6 +11,7 @@ import {
   RequestStatus,
   AdminListUsersOptions,
   CollegeSettings,
+  TutorAssignment,
 } from "@/lib/types";
 import { showError } from "@/utils/toast";
 import { FunctionsHttpError } from "@supabase/supabase-js";
@@ -134,12 +135,28 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
     }
   }
 
-  // 4. Fetch Tutor profile
-  if (tutor_id) {
+  // 4. Resolve Tutor (Semester-specific assignment takes precedence)
+  let finalTutorId = tutor_id;
+
+  if (batch?.id && batch.current_semester) {
+    const { data: assignmentData } = await supabase
+      .from("tutor_assignments")
+      .select("tutor_id")
+      .eq("batch_id", batch.id)
+      .eq("section", batch.section || "No Section")
+      .eq("semester", batch.current_semester)
+      .maybeSingle();
+
+    if (assignmentData?.tutor_id) {
+      finalTutorId = assignmentData.tutor_id;
+    }
+  }
+
+  if (finalTutorId) {
     const { data: tutorData, error: tutorError } = await supabase
       .from("profiles")
       .select(`id, first_name, last_name, name, role`) // Added role
-      .eq("id", tutor_id)
+      .eq("id", finalTutorId)
       .maybeSingle();
     if (tutorError) {
       console.warn(`[Dyad Debug] Error fetching tutor profile ${tutor_id}:`, tutorError);
@@ -196,7 +213,8 @@ export const fetchStudentDetails = async (studentId: string): Promise<StudentDet
     current_semester: batch?.current_semester,
     department_id: department?.id || batch?.department_id,
     department_name: department?.name,
-    tutor_id: tutor?.id,
+    section: batch?.section || "No Section",
+    tutor_id: finalTutorId,
     tutor_name: formatName(tutor),
     hod_id: hod?.id,
     hod_name: formatName(hod),
@@ -251,15 +269,33 @@ export const fetchAllStudentsWithDetails = async (): Promise<StudentDetails[]> =
     throw new Error("Failed to fetch all departments: " + departmentsError.message);
   }
 
+  // Fetch all tutor assignments
+  const { data: assignmentsData, error: assignmentsError } = await supabase
+    .from("tutor_assignments")
+    .select("batch_id, section, semester, tutor_id");
+
+  if (assignmentsError) {
+    console.warn("Error fetching tutor assignments for students list:", assignmentsError);
+  }
+
   const profilesMap = new Map(profilesData.map(p => [p.id, p]));
   const batchesMap = new Map(batchesData.map(b => [b.id, b]));
   const departmentsMap = new Map(departmentsData.map(d => [d.id, d]));
+  const assignmentsMap = new Map(
+    assignmentsData?.map(a => [`${a.batch_id}:${a.section}:${a.semester}`, a.tutor_id!]) || []
+  );
 
   return studentsData.map((student: any) => {
     const studentProfile = profilesMap.get(student.id);
     const batch = batchesMap.get(student.batch_id);
     const department = departmentsMap.get(batch?.department_id);
-    const tutorProfile = profilesMap.get(student.tutor_id);
+
+    // Resolve tutor via assignments or fallback to static tutor_id
+    const assignmentKey = `${batch?.id}:${batch?.section || "No Section"}:${batch?.current_semester}`;
+    const assignedTutorId = assignmentsMap.get(assignmentKey);
+    const finalTutorId = assignedTutorId || student.tutor_id;
+    const tutorProfile = profilesMap.get(finalTutorId);
+
     const hodProfile = profilesMap.get(student.hod_id);
 
     return {
@@ -276,9 +312,10 @@ export const fetchAllStudentsWithDetails = async (): Promise<StudentDetails[]> =
       batch_id: batch?.id,
       batch_name: batch ? `${batch.name} ${batch.section || ''}`.trim() : undefined,
       current_semester: batch?.current_semester,
+      section: batch?.section || "No Section",
       department_id: department?.id,
       department_name: department?.name,
-      tutor_id: tutorProfile?.id,
+      tutor_id: finalTutorId,
       tutor_name: tutorProfile ? `${tutorProfile.first_name} ${tutorProfile.last_name || ''}`.trim() : undefined,
       hod_id: hodProfile?.id,
       hod_name: hodProfile ? `${hodProfile.first_name} ${hodProfile.last_name || ''}`.trim() : undefined,
@@ -784,15 +821,18 @@ export const createStudent = async (
   const { email, username, ...otherProfileData } = profileData;
 
   // Generate a random password if not provided (e.g., for bulk upload)
-  const finalPassword = password || Math.random().toString(36).slice(-8); // Simple random password
+  // FALLBACK: Use register_number if password is missing
+  const finalPassword = password || studentData.register_number || Math.random().toString(36).slice(-8);
 
   // CRITICAL CHECK: Ensure email and password are valid before invoking Edge Function
   if (!email || typeof email !== 'string' || email.trim() === '') {
     return { error: "Email is missing or invalid for user creation." };
   }
-  if (!finalPassword || finalPassword.length < 6) {
+  if (!finalPassword || String(finalPassword).length < 6) {
     return { error: "Password must be at least 6 characters long." };
   }
+
+  const trimmedEmail = email.trim();
 
   // Clean metadata before sending to Edge Function
   const cleanedMetaData = cleanObject({
@@ -801,43 +841,55 @@ export const createStudent = async (
     role: 'student',
   });
 
+  console.log(`[Dyad Debug] Invoking manage-users Edge Function for email: ${trimmedEmail}`, {
+    action: 'signUp',
+    metadata: cleanedMetaData
+  });
+
   // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
   const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
-    body: JSON.stringify({
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: {
       action: 'signUp',
       payload: {
         credentials: {
-          email: email,
-          password: finalPassword,
+          email: trimmedEmail,
+          password: String(finalPassword),
           options: {
             data: cleanedMetaData,
           },
         },
       },
-    }),
+    },
   });
 
   if (authError) {
-    console.error("Error signing up student user via Edge Function:", authError);
+    console.error("[Dyad Debug] Edge Function invocation failed:", authError);
 
-    let errorMessage = authError.message;
+    let errorMessage = "Unknown error from Edge Function";
     if (authError instanceof FunctionsHttpError) {
       try {
         const errorData = await authError.context.json();
+        console.error("[Dyad Debug] Edge Function raw error data:", errorData);
         if (errorData && errorData.error) {
           errorMessage = errorData.error;
         }
       } catch (e) {
-        console.error("Could not parse error response as JSON", e);
+        console.warn("[Dyad Debug] Could not parse Edge Function error response as JSON", e);
+        errorMessage = authError.message;
       }
+    } else {
+      errorMessage = (authError as any).message || String(authError);
     }
 
     // Check for specific error messages related to duplicate email
-    if (errorMessage.includes('User already exists') || errorMessage.includes('duplicate key value')) {
-      return { error: `A user with email "${email}" already exists.` };
+    if (errorMessage.toLowerCase().includes('user already exists') || errorMessage.toLowerCase().includes('duplicate')) {
+      return { error: `A user with email "${trimmedEmail}" already exists.` };
     }
 
-    return { error: "Failed to create student user: " + errorMessage };
+    return { error: "Auth system error: " + errorMessage };
   }
 
   const newUser = (authData as any)?.user; // Cast to any to access user property
@@ -851,10 +903,10 @@ export const createStudent = async (
       showError("Failed to retrieve new student profile after creation. Please try again or contact support.");
       // Rollback: delete the auth user if profile creation failed
       await supabase.functions.invoke('manage-users', {
-        body: JSON.stringify({
+        body: {
           action: 'deleteUser',
           payload: { userId: newUser.id },
-        }),
+        },
       });
       return { error: "Failed to retrieve new student profile after creation." };
     }
@@ -886,10 +938,10 @@ export const createStudent = async (
         // Roll back: delete the profile and auth user if student-specific data creation fails
         await supabase.from("profiles").delete().eq("id", newProfile.id);
         await supabase.functions.invoke('manage-users', {
-          body: JSON.stringify({
+          body: {
             action: 'deleteUser',
             payload: { userId: newProfile.id },
-          }),
+          },
         });
         return { error: errorMessage };
       }
@@ -897,10 +949,10 @@ export const createStudent = async (
       // Roll back for other errors
       await supabase.from("profiles").delete().eq("id", newProfile.id);
       await supabase.functions.invoke('manage-users', {
-        body: JSON.stringify({
+        body: {
           action: 'deleteUser',
           payload: { userId: newProfile.id },
-        }),
+        },
       });
       return { error: "Failed to create student entry: " + studentError?.message };
     }
@@ -924,13 +976,13 @@ export const updateStudent = async (
     }
 
     const { error: authError } = await supabase.functions.invoke('manage-users', {
-      body: JSON.stringify({
+      body: {
         action: 'updateUserById',
         payload: {
           userId: studentId,
           updates: authUpdates,
         },
-      }),
+      },
     });
 
     if (authError) {
@@ -979,10 +1031,10 @@ export const updateStudent = async (
 export const deleteStudent = async (studentId: string): Promise<boolean> => {
   // When deleting a student, we should also delete their auth.users entry via Edge Function.
   const { error } = await supabase.functions.invoke('manage-users', {
-    body: JSON.stringify({
+    body: {
       action: 'deleteUser',
       payload: { userId: studentId },
-    }),
+    },
   });
 
   if (error) {
@@ -997,35 +1049,47 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
 
   const cleanedMetaData = cleanObject(metaData);
 
+  console.log(`[Dyad Debug] Invoking manage-users Edge Function for email: ${email}`, {
+    action: 'signUp',
+    metadata: cleanedMetaData
+  });
+
   // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
   const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
-    body: JSON.stringify({
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: {
       action: 'signUp',
       payload: {
         credentials: {
           email: email!,
-          password: password,
+          password: String(password),
           options: {
             data: cleanedMetaData,
           },
         },
       },
-    }),
+    },
   });
 
   if (authError) {
-    console.error("Error signing up tutor user via Edge Function:", authError);
+    console.error("[Dyad Debug] Edge Function invocation failed for tutor:", authError);
 
-    let errorMessage = authError.message;
+    let errorMessage = "Unknown error from Edge Function";
     if (authError instanceof FunctionsHttpError) {
       try {
         const errorData = await authError.context.json();
+        console.error("[Dyad Debug] Edge Function raw error data:", errorData);
         if (errorData && errorData.error) {
           errorMessage = errorData.error;
         }
       } catch (e) {
-        console.error("Could not parse error response as JSON", e);
+        console.warn("[Dyad Debug] Could not parse Edge Function error response as JSON", e);
+        errorMessage = authError.message;
       }
+    } else {
+      errorMessage = (authError as any).message || String(authError);
     }
     showError("Failed to create tutor user: " + errorMessage);
     return null;
@@ -1042,10 +1106,10 @@ export const createTutor = async (profileData: Omit<Profile, 'id' | 'created_at'
       showError("Failed to retrieve new tutor profile after creation. Please try again or contact support.");
       // Optionally, attempt to delete the auth user if profile creation failed
       await supabase.functions.invoke('manage-users', {
-        body: JSON.stringify({
+        body: {
           action: 'deleteUser',
           payload: { userId: newUser.id },
-        }),
+        },
       });
       return null;
     }
@@ -1067,13 +1131,13 @@ export const updateTutor = async (tutorId: string, updates: Partial<Profile>): P
 
 export const updateUserPassword = async (userId: string, newPassword: string): Promise<boolean> => {
   const { data, error } = await supabase.functions.invoke('manage-users', {
-    body: JSON.stringify({
+    body: {
       action: 'updateUserById',
       payload: {
         userId: userId,
         updates: { password: newPassword },
       },
-    }),
+    },
   });
 
   if (error) {
@@ -1100,10 +1164,10 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
 export const deleteTutor = async (tutorId: string): Promise<boolean> => {
   // When deleting a tutor, we should also delete their auth.users entry via Edge Function.
   const { error } = await supabase.functions.invoke('manage-users', {
-    body: JSON.stringify({
+    body: {
       action: 'deleteUser',
       payload: { userId: tutorId },
-    }),
+    },
   });
 
   if (error) {
@@ -1118,35 +1182,47 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
 
   const cleanedMetaData = cleanObject(metaData);
 
+  console.log(`[Dyad Debug] Invoking manage-users Edge Function for email: ${email}`, {
+    action: 'signUp',
+    metadata: cleanedMetaData
+  });
+
   // 1. Create the user in Supabase Auth via Edge Function (This will fail if the user already exists)
   const { data: authData, error: authError } = await supabase.functions.invoke('manage-users', {
-    body: JSON.stringify({
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: {
       action: 'signUp',
       payload: {
         credentials: {
           email: email!,
-          password: password,
+          password: String(password),
           options: {
             data: cleanedMetaData,
           },
         },
       },
-    }),
+    },
   });
 
   if (authError) {
-    console.error("Error signing up HOD user via Edge Function:", authError);
+    console.error("[Dyad Debug] Edge Function invocation failed for HOD:", authError);
 
-    let errorMessage = authError.message;
+    let errorMessage = "Unknown error from Edge Function";
     if (authError instanceof FunctionsHttpError) {
       try {
         const errorData = await authError.context.json();
+        console.error("[Dyad Debug] Edge Function raw error data:", errorData);
         if (errorData && errorData.error) {
           errorMessage = errorData.error;
         }
       } catch (e) {
-        console.error("Could not parse error response as JSON", e);
+        console.warn("[Dyad Debug] Could not parse Edge Function error response as JSON", e);
+        errorMessage = authError.message;
       }
+    } else {
+      errorMessage = (authError as any).message || String(authError);
     }
     showError("Failed to create HOD user: " + errorMessage);
     return null;
@@ -1163,10 +1239,10 @@ export const createHod = async (profileData: Omit<Profile, 'id' | 'created_at' |
       showError("Failed to retrieve new HOD profile after creation. Please try again or contact support.");
       // Optionally, attempt to delete the auth user if profile creation failed
       await supabase.functions.invoke('manage-users', {
-        body: JSON.stringify({
+        body: {
           action: 'deleteUser',
           payload: { userId: newUser.id },
-        }),
+        },
       });
       return null;
     }
@@ -1187,10 +1263,10 @@ export const updateHod = async (hodId: string, updates: Partial<Profile>): Promi
 export const deleteHod = async (hodId: string): Promise<boolean> => {
   // When deleting a HOD, we should also delete their auth.users entry via Edge Function.
   const { error } = await supabase.functions.invoke('manage-users', {
-    body: JSON.stringify({
+    body: {
       action: 'deleteUser',
       payload: { userId: hodId },
-    }),
+    },
   });
 
   if (error) {
@@ -1246,4 +1322,66 @@ export const updateCollegeSettings = async (updates: Partial<CollegeSettings>): 
     }
     return data as CollegeSettings;
   }
+};
+
+export const fetchTutorAssignments = async (batchId?: string): Promise<TutorAssignment[]> => {
+  let query = supabase.from("tutor_assignments").select(`
+    *,
+    tutor:profiles(id, first_name, last_name, name),
+    batch:batches(id, name, section)
+  `);
+
+  if (batchId) {
+    query = query.eq("batch_id", batchId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("Error fetching tutor assignments:", error);
+    throw new Error("Failed to fetch tutor assignments: " + error.message);
+  }
+  return data as TutorAssignment[];
+};
+
+export const createTutorAssignment = async (newAssignment: Omit<TutorAssignment, 'id' | 'created_at' | 'updated_at'>): Promise<TutorAssignment | null> => {
+  const { data, error } = await supabase.from("tutor_assignments").insert(cleanObject(newAssignment)).select().single();
+  if (error) {
+    console.error("Error creating tutor assignment:", error);
+    return null;
+  }
+  return data as TutorAssignment;
+};
+
+export const updateTutorAssignment = async (id: string, updates: Partial<TutorAssignment>): Promise<TutorAssignment | null> => {
+  const { data, error } = await supabase.from("tutor_assignments").update(cleanObject(updates)).eq("id", id).select().single();
+  if (error) {
+    console.error("Error updating tutor assignment:", error);
+    return null;
+  }
+  return data as TutorAssignment;
+};
+
+export const deleteTutorAssignment = async (id: string): Promise<boolean> => {
+  const { error } = await supabase.from("tutor_assignments").delete().eq("id", id);
+  if (error) {
+    console.error("Error deleting tutor assignment:", error);
+    return false;
+  }
+  return true;
+};
+
+export const resolveTutorForRequest = async (batchId: string, section: string, semester: number): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from("tutor_assignments")
+    .select("tutor_id")
+    .eq("batch_id", batchId)
+    .eq("section", section)
+    .eq("semester", semester)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error resolving tutor for request:", error);
+    return null;
+  }
+  return data?.tutor_id || null;
 };

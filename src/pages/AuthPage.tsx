@@ -7,8 +7,10 @@ import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import CustomLoginForm from "@/components/auth/CustomLoginForm";
+import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
 
 const AuthPage = () => {
+  const [isFlipped, setIsFlipped] = useState(false);
   const { session, loading, profile } = useSession();
   const navigate = useNavigate();
 
@@ -53,10 +55,10 @@ const AuthPage = () => {
 
       {/* Back button */}
       <div className="absolute top-4 left-4 z-20">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          asChild 
+        <Button
+          variant="ghost"
+          size="icon"
+          asChild
           className="text-white hover:bg-white/20 transition-all duration-300
                      hover:scale-110 hover:shadow-lg hover:-translate-y-1
                      active:scale-105 active:translate-y-0
@@ -70,19 +72,36 @@ const AuthPage = () => {
         </Button>
       </div>
 
-      {/* Login Form Card */}
-      <Card className="relative z-10 w-full max-w-sm p-6 shadow-lg rounded-xl glass-card animate-pop-in">
-        <CardHeader className="text-center">
-          <img src="/LOGO.jpg" alt="College Logo" className="mx-auto h-20 w-20 mb-4 rounded-full object-cover" />
-          <CardTitle className="text-3xl font-bold text-foreground">Login</CardTitle>
-          <CardDescription className="text-balance text-muted-foreground">
-            Enter your email and password below to login to your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <CustomLoginForm />
-        </CardContent>
-      </Card>
+      {/* Form Card */}
+      <div className="relative z-10 w-full max-w-sm">
+        {!isFlipped ? (
+          <Card className="p-6 shadow-lg rounded-xl glass-card flex flex-col justify-center transition-all duration-300">
+            <CardHeader className="text-center pt-0">
+              <img src="/LOGO.jpg" alt="College Logo" className="mx-auto h-20 w-20 mb-4 rounded-full object-cover" />
+              <CardTitle className="text-3xl font-bold text-foreground">Login</CardTitle>
+              <CardDescription className="text-balance text-muted-foreground">
+                Enter your email and password below to login to your account
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <CustomLoginForm onForgotPassword={() => setIsFlipped(true)} />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="p-6 shadow-lg rounded-xl glass-card flex flex-col justify-center transition-all duration-300">
+            <CardHeader className="text-center pt-0">
+              <img src="/LOGO.jpg" alt="College Logo" className="mx-auto h-20 w-20 mb-4 rounded-full object-cover" />
+              <CardTitle className="text-3xl font-bold text-foreground">Reset Password</CardTitle>
+              <CardDescription className="text-balance text-muted-foreground">
+                Enter your email address and we'll send you a link to reset your password.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <ForgotPasswordForm onBackToLogin={() => setIsFlipped(false)} />
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };

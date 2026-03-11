@@ -54,6 +54,30 @@ export const fetchProfiles = async (role?: string): Promise<Profile[]> => {
   return data as Profile[];
 };
 
+export const fetchTutorsWithAssignments = async (): Promise<Profile[]> => {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(`
+      *,
+      tutor_assignments (
+        semester,
+        academic_year,
+        batch:batches (
+          id,
+          name,
+          section
+        )
+      )
+    `)
+    .eq("role", "tutor");
+
+  if (error) {
+    console.error("Error fetching tutors with assignments:", error);
+    throw new Error("Failed to fetch tutors with assignments: " + error.message);
+  }
+  return data as Profile[];
+};
+
 export const fetchStudentDetails = async (studentId: string): Promise<StudentDetails | null> => {
   console.log(`[Dyad Debug] Starting fetchStudentDetails for studentId: ${studentId}`);
 
@@ -429,7 +453,7 @@ export const fetchHodDetails = async (hodId: string): Promise<HodDetails | null>
 
 
 export const fetchDepartments = async (): Promise<Department[]> => {
-  const { data, error } = await supabase.from("departments").select("*");
+  const { data, error } = await supabase.from("departments").select("*").order("name");
   if (error) {
     console.error("Error fetching departments:", error);
     throw new Error("Failed to fetch departments: " + error.message);
@@ -447,11 +471,14 @@ export const fetchDepartmentByName = async (name: string): Promise<Department | 
   return data as Department | null;
 };
 
-export const fetchBatches = async (): Promise<Batch[]> => {
-  const { data, error } = await supabase.from("batches").select(`
-    *,
-    tutors:profiles!batches_tutor_id_fkey(first_name, last_name)
-  `);
+export const fetchBatches = async (departmentId?: string): Promise<Batch[]> => {
+  let query = supabase.from("batches").select("*");
+
+  if (departmentId) {
+    query = query.eq("department_id", departmentId);
+  }
+
+  const { data, error } = await query;
   if (error) {
     console.error("Error fetching batches:", error);
     throw new Error("Failed to fetch batches: " + error.message);
@@ -1328,7 +1355,7 @@ export const fetchTutorAssignments = async (batchId?: string): Promise<TutorAssi
   let query = supabase.from("tutor_assignments").select(`
     *,
     tutor:profiles(id, first_name, last_name, name),
-    batch:batches(id, name, section)
+    batch:batches(id, name, section, department_id)
   `);
 
   if (batchId) {

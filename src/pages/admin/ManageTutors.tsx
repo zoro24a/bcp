@@ -52,14 +52,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  fetchProfiles,
-  fetchBatches,
   fetchDepartments,
+  fetchBatches,
   createTutor,
   updateTutor,
   deleteTutor,
   updateUserPassword,
   fetchDepartmentByName,
+  fetchTutorsWithAssignments,
 } from "@/data/appData";
 import { Profile, Department, Batch } from "@/lib/types";
 import { showSuccess, showError } from "@/utils/toast";
@@ -80,7 +80,7 @@ const ManageTutors = () => {
 
   const fetchAllData = async () => {
     setLoading(true);
-    const fetchedTutors = await fetchProfiles('tutor');
+    const fetchedTutors = await fetchTutorsWithAssignments();
     const fetchedDepartments = await fetchDepartments();
     const fetchedBatches = await fetchBatches();
 
@@ -243,16 +243,17 @@ const ManageTutors = () => {
   };
 
   // Helper function to find assigned batches for display
-  const getAssignedBatchesDisplay = (tutorId: string) => {
-    const assigned = batches.filter(b => b.tutor_id === tutorId);
-    if (assigned.length === 0) return { fullBatchName: "N/A", currentSemester: "N/A", academicYearRange: "N/A" };
+  const getAssignedBatchesDisplay = (tutor: Profile) => {
+    const assignments = tutor.tutor_assignments;
+    if (!assignments || assignments.length === 0) {
+      return { fullBatchName: "Not Assigned", currentSemester: "Not Assigned", academicYearRange: "Not Assigned" };
+    }
 
     // Display the first assigned batch details for simplicity in the table row
-    const firstBatch = assigned[0];
-    const fullBatchName = assigned.map(b => `${b.name} ${b.section || ''}`.trim()).join(', ');
-    const academicYearRange = firstBatch.name || "N/A";
-    const currentSemester = firstBatch.current_semester || "N/A";
-
+    const firstAssignment = assignments[0];
+    const fullBatchName = assignments.map(a => `${a.batch?.name || ''} ${a.batch?.section || ''}`.trim()).join(', ');
+    const academicYearRange = firstAssignment.academic_year || "Not Assigned";
+    const currentSemester = firstAssignment.semester || "Not Assigned";
     return { fullBatchName, currentSemester, academicYearRange };
   };
 
@@ -471,7 +472,7 @@ const ManageTutors = () => {
             {tutors.length > 0 ? (
               tutors.map((tutor) => {
                 const departmentName = departments.find(d => d.id === tutor.department_id)?.name || "N/A";
-                const { fullBatchName, currentSemester, academicYearRange } = getAssignedBatchesDisplay(tutor.id);
+                const { fullBatchName, currentSemester, academicYearRange } = getAssignedBatchesDisplay(tutor);
 
                 return (
                   <TableRow key={tutor.id}>

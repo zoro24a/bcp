@@ -3,9 +3,14 @@
 @tailwind utilities;
 
 @layer base {
-  html, body, #root {
-    height: 100%; /* Ensure html, body, and root div take full height */
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    /* Ensure html, body, and root div take full height */
   }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 220 15% 20%;
@@ -29,51 +34,61 @@
     --radius: 0.5rem;
 
     /* --- THEME: TUTOR --- */
-    --tutor-sidebar-background: 220 45% 40%; /* Professional blue-gray */
+    --tutor-sidebar-background: 220 45% 40%;
+    /* Professional blue-gray */
     --tutor-sidebar-foreground: 0 0% 98%;
     --tutor-sidebar-muted-foreground: 220 15% 80%;
     --tutor-sidebar-active-background: 0 0% 100%;
     --tutor-sidebar-active-foreground: 220 45% 35%;
     --tutor-sidebar-border: 220 30% 35%;
-    --tutor-header-background: 0 0% 100%; /* Made solid */
+    --tutor-header-background: 0 0% 100%;
+    /* Made solid */
 
     /* --- THEME: ADMIN --- */
-    --admin-sidebar-background: 220 70% 25%; /* Deep professional blue */
+    --admin-sidebar-background: 220 70% 25%;
+    /* Deep professional blue */
     --admin-sidebar-foreground: 0 0% 98%;
     --admin-sidebar-muted-foreground: 220 20% 75%;
     --admin-sidebar-active-background: 220 80% 45%;
     --admin-sidebar-active-foreground: 0 0% 98%;
     --admin-sidebar-border: 220 50% 20%;
-    --admin-header-background: 0 0% 100%; /* Made solid */
+    --admin-header-background: 0 0% 100%;
+    /* Made solid */
     --admin-card-background: 0 0% 100%;
 
     /* --- THEME: STUDENT --- */
-    --student-sidebar-background-start: 200 55% 35%; /* Professional teal-blue */
+    --student-sidebar-background-start: 200 55% 35%;
+    /* Professional teal-blue */
     --student-sidebar-background-end: 210 50% 40%;
     --student-sidebar-foreground: 0 0% 95%;
     --student-sidebar-muted-foreground: 200 20% 75%;
     --student-sidebar-active-background: 0 0% 100%;
     --student-sidebar-active-foreground: 200 55% 30%;
     --student-sidebar-border: 200 40% 30%;
-    --student-header-background: 0 0% 100%; /* Made solid */
+    --student-header-background: 0 0% 100%;
+    /* Made solid */
 
     /* --- THEME: HOD --- */
-    --hod-sidebar-background: 160 40% 35%; /* Professional emerald-teal */
+    --hod-sidebar-background: 160 40% 35%;
+    /* Professional emerald-teal */
     --hod-sidebar-foreground: 0 0% 98%;
     --hod-sidebar-muted-foreground: 160 20% 75%;
     --hod-sidebar-active-background: 160 50% 55%;
     --hod-sidebar-active-foreground: 0 0% 98%;
     --hod-sidebar-border: 160 30% 30%;
-    --hod-header-background: 0 0% 100%; /* Made solid */
+    --hod-header-background: 0 0% 100%;
+    /* Made solid */
 
     /* --- THEME: PRINCIPAL --- */
-    --principal-sidebar-background: 260 45% 35%; /* Professional purple-blue */
+    --principal-sidebar-background: 260 45% 35%;
+    /* Professional purple-blue */
     --principal-sidebar-foreground: 0 0% 98%;
     --principal-sidebar-muted-foreground: 260 20% 75%;
     --principal-sidebar-active-background: 260 55% 55%;
     --principal-sidebar-active-foreground: 0 0% 98%;
     --principal-sidebar-border: 260 35% 30%;
-    --principal-header-background: 0 0% 100%; /* Made solid */
+    --principal-header-background: 0 0% 100%;
+    /* Made solid */
 
     /* Custom colors for login button hover effect */
     --lighter-dark-shade: 220 30% 25%;
@@ -84,9 +99,10 @@
     --dashboard-gradient-blue: 220 45% 35%;
     --dashboard-gradient-cyan: 190 40% 40%;
     --dashboard-gradient-lavender: 260 30% 45%;
-    
+
     /* Deep Teal Main Background Variables */
-    --main-background-white: 0 0% 100%; /* White background in HSL */
+    --main-background-white: 0 0% 100%;
+    /* White background in HSL */
     --main-background-white-light: 0 0% 98%;
     --main-background-white-accent: 0 0% 96%;
   }
@@ -113,13 +129,19 @@
     --ring: 220 55% 65%;
 
     /* --- DARK THEMES --- */
-    --header-background: 220 20% 6%; /* Made solid */
-    --admin-header-background: 220 20% 6%; /* Made solid */
+    --header-background: 220 20% 6%;
+    /* Made solid */
+    --admin-header-background: 220 20% 6%;
+    /* Made solid */
     --admin-card-background: 220 18% 12%;
-    --student-header-background: 220 20% 6%; /* Made solid */
-    --tutor-header-background: 220 20% 6%; /* Made solid */
-    --hod-header-background: 220 20% 6%; /* Made solid */
-    --principal-header-background: 220 20% 6%; /* Made solid */
+    --student-header-background: 220 20% 6%;
+    /* Made solid */
+    --tutor-header-background: 220 20% 6%;
+    /* Made solid */
+    --hod-header-background: 220 20% 6%;
+    /* Made solid */
+    --principal-header-background: 220 20% 6%;
+    /* Made solid */
 
     /* Custom colors for login button hover effect */
     --lighter-dark-shade: 220 30% 18%;
@@ -130,9 +152,10 @@
     --dashboard-gradient-blue: 220 45% 18%;
     --dashboard-gradient-cyan: 190 40% 20%;
     --dashboard-gradient-lavender: 260 30% 25%;
-    
+
     /* Deep Teal Main Background Variables (Dark Mode) */
-    --main-background-charcoal: 210 15% 20%; /* Even deeper for dark mode */
+    --main-background-charcoal: 210 15% 20%;
+    /* Even deeper for dark mode */
     --main-background-charcoal-light: 210 15% 25%;
     --main-background-charcoal-accent: 210 15% 30%;
 
@@ -165,20 +188,21 @@
   .admin-layout-theme {
     --card: hsl(var(--admin-card-background));
   }
+
   /* New universal sidebar gradient */
   .bg-sidebar-gradient {
-    background: linear-gradient(
-      135deg, /* From top-left to bottom-right */
-      hsl(var(--dashboard-gradient-violet)) 0%,
-      hsl(var(--dashboard-gradient-blue)) 35%,
-      hsl(var(--dashboard-gradient-cyan)) 70%,
-      hsl(var(--dashboard-gradient-lavender)) 100%
-    );
+    background: linear-gradient(135deg,
+        /* From top-left to bottom-right */
+        hsl(var(--dashboard-gradient-violet)) 0%,
+        hsl(var(--dashboard-gradient-blue)) 35%,
+        hsl(var(--dashboard-gradient-cyan)) 70%,
+        hsl(var(--dashboard-gradient-lavender)) 100%);
   }
 
   .glass-card {
     @apply bg-card/70 backdrop-blur-sm border border-border/50 shadow-md;
   }
+
   .dark .glass-card {
     @apply bg-card/40 backdrop-blur-sm border border-border/30 shadow-lg;
   }
@@ -187,7 +211,7 @@
   .sidebar-text-hover {
     transition: all 0.3s ease;
   }
-  
+
   .sidebar-text-hover:hover {
     animation: text-popup 0.3s ease forwards, text-glow 0.3s ease forwards;
     transform-origin: center;
@@ -195,25 +219,28 @@
 
   /* New wavy background for main content with white for light mode */
   .wavy-background {
-    background-color: hsl(var(--main-background-white)); /* Use CSS variable for light mode */
+    background-color: hsl(var(--main-background-white));
+    /* Use CSS variable for light mode */
     background-image:
       radial-gradient(at 15% 80%, rgba(240, 240, 240, 0.3) 0%, transparent 50%),
       radial-gradient(at 85% 20%, rgba(230, 230, 230, 0.4) 0%, transparent 50%),
       radial-gradient(at 50% 50%, rgba(250, 250, 250, 0.2) 0%, transparent 40%);
-    background-size: 120% 120%; /* Slightly larger than container */
+    background-size: 120% 120%;
+    /* Slightly larger than container */
     background-repeat: no-repeat;
     animation: subtle-flow 30s ease-in-out infinite alternate;
   }
-  
+
   /* Dark mode version with charcoal tones */
   .dark .wavy-background {
-    background-color: hsl(var(--main-background-charcoal)); /* Use CSS variable for dark mode */
+    background-color: hsl(var(--main-background-charcoal));
+    /* Use CSS variable for dark mode */
     background-image:
       radial-gradient(at 15% 80%, rgba(50, 65, 75, 0.4) 0%, transparent 50%),
       radial-gradient(at 85% 20%, rgba(35, 45, 55, 0.5) 0%, transparent 50%),
       radial-gradient(at 50% 50%, rgba(65, 80, 90, 0.3) 0%, transparent 40%);
   }
-  
+
   /* Ensure proper text visibility in light mode */
   .wavy-background h1,
   .wavy-background h2,
@@ -221,9 +248,10 @@
   .wavy-background h4,
   .wavy-background h5,
   .wavy-background h6 {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle shadow for light mode */
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    /* Subtle shadow for light mode */
   }
-  
+
   /* Dark mode headings */
   .dark .wavy-background h1,
   .dark .wavy-background h2,
@@ -231,7 +259,8 @@
   .dark .wavy-background h4,
   .dark .wavy-background h5,
   .dark .wavy-background h6 {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); /* Dark shadow for dark mode */
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    /* Dark shadow for dark mode */
   }
 }
 
@@ -239,6 +268,7 @@
   0% {
     background-position: 0% 0%, 100% 100%;
   }
+
   100% {
     background-position: 100% 100%, 0% 0%;
   }
@@ -249,10 +279,12 @@
     transform: scale(0.95) translateX(-10px);
     opacity: 0;
   }
+
   50% {
     transform: scale(1.02);
     opacity: 1;
   }
+
   100% {
     transform: scale(1) translateX(0);
     opacity: 1;
@@ -263,9 +295,11 @@
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.1);
   }
+
   100% {
     transform: scale(1.05);
   }
@@ -275,6 +309,7 @@
   0% {
     text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
   }
+
   100% {
     text-shadow: 0 0 15px rgba(255, 255, 255, 0.8), 0 0 25px rgba(255, 255, 255, 0.5);
   }
@@ -284,6 +319,7 @@
 .dashboard-card-primary {
   @apply bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 border-blue-300 shadow-blue-200/50;
 }
+
 .dark .dashboard-card-primary {
   @apply bg-gradient-to-br from-blue-950/60 via-blue-900/50 to-indigo-950/60 border-blue-700/60 shadow-blue-900/30;
 }
@@ -291,6 +327,7 @@
 .dashboard-card-success {
   @apply bg-gradient-to-br from-green-50 via-green-100 to-emerald-100 border-green-300 shadow-green-200/50;
 }
+
 .dark .dashboard-card-success {
   @apply bg-gradient-to-br from-green-950/60 via-green-900/50 to-emerald-950/60 border-green-700/60 shadow-green-900/30;
 }
@@ -298,6 +335,7 @@
 .dashboard-card-warning {
   @apply bg-gradient-to-br from-amber-50 via-amber-100 to-yellow-100 border-amber-300 shadow-amber-200/50;
 }
+
 .dark .dashboard-card-warning {
   @apply bg-gradient-to-br from-amber-950/60 via-amber-900/50 to-yellow-950/60 border-amber-700/60 shadow-amber-900/30;
 }
@@ -305,6 +343,7 @@
 .dashboard-card-info {
   @apply bg-gradient-to-br from-cyan-50 via-cyan-100 to-sky-100 border-cyan-300 shadow-cyan-200/50;
 }
+
 .dark .dashboard-card-info {
   @apply bg-gradient-to-br from-cyan-950/60 via-cyan-900/50 to-sky-950/60 border-cyan-700/60 shadow-cyan-900/30;
 }
@@ -312,6 +351,7 @@
 .dashboard-card-danger {
   @apply bg-gradient-to-br from-red-50 via-red-100 to-rose-100 border-red-300 shadow-red-200/50;
 }
+
 .dark .dashboard-card-danger {
   @apply bg-gradient-to-br from-red-950/60 via-red-900/50 to-rose-950/60 border-red-700/60 shadow-red-900/30;
 }
@@ -319,6 +359,7 @@
 .dashboard-card-purple {
   @apply bg-gradient-to-br from-purple-50 via-purple-100 to-violet-100 border-purple-300 shadow-purple-200/50;
 }
+
 .dark .dashboard-card-purple {
   @apply bg-gradient-to-br from-purple-950/60 via-purple-900/50 to-violet-950/60 border-purple-700/60 shadow-purple-900/30;
 }
@@ -326,6 +367,7 @@
 .dashboard-card-emerald {
   @apply bg-gradient-to-br from-emerald-50 via-emerald-100 to-teal-100 border-emerald-300 shadow-emerald-200/50;
 }
+
 .dark .dashboard-card-emerald {
   @apply bg-gradient-to-br from-emerald-950/60 via-emerald-900/50 to-teal-950/60 border-emerald-700/60 shadow-emerald-900/30;
 }
@@ -333,6 +375,7 @@
 .dashboard-card-cyan {
   @apply bg-gradient-to-br from-cyan-50 via-cyan-100 to-blue-100 border-cyan-300 shadow-cyan-200/50;
 }
+
 .dark .dashboard-card-cyan {
   @apply bg-gradient-to-br from-cyan-950/60 via-cyan-900/50 to-blue-950/60 border-cyan-700/60 shadow-cyan-900/30;
 }
@@ -340,6 +383,7 @@
 .dashboard-card-rose {
   @apply bg-gradient-to-br from-rose-50 via-rose-100 to-pink-100 border-rose-300 shadow-rose-200/50;
 }
+
 .dark .dashboard-card-rose {
   @apply bg-gradient-to-br from-rose-950/60 via-rose-900/50 to-pink-950/60 border-rose-700/60 shadow-rose-900/30;
 }
@@ -348,6 +392,7 @@
 .dashboard-card-admin {
   @apply bg-gradient-to-br from-slate-50 via-slate-100 to-gray-100 border-slate-300 shadow-slate-200/50;
 }
+
 .dark .dashboard-card-admin {
   @apply bg-gradient-to-br from-slate-900/70 via-slate-800/60 to-gray-900/70 border-slate-600/60 shadow-slate-800/40;
 }
@@ -355,6 +400,7 @@
 .dashboard-card-student {
   @apply bg-gradient-to-br from-sky-50 via-sky-100 to-blue-100 border-sky-300 shadow-sky-200/50;
 }
+
 .dark .dashboard-card-student {
   @apply bg-gradient-to-br from-sky-950/60 via-sky-900/50 to-blue-950/60 border-sky-600/60 shadow-sky-800/40;
 }
@@ -362,6 +408,7 @@
 .dashboard-card-tutor {
   @apply bg-gradient-to-br from-lime-50 via-lime-100 to-green-100 border-lime-300 shadow-lime-200/50;
 }
+
 .dark .dashboard-card-tutor {
   @apply bg-gradient-to-br from-lime-950/60 via-lime-900/50 to-green-950/60 border-lime-600/60 shadow-lime-800/40;
 }
@@ -369,6 +416,7 @@
 .dashboard-card-hod {
   @apply bg-gradient-to-br from-teal-50 via-teal-100 to-emerald-100 border-teal-300 shadow-teal-200/50;
 }
+
 .dark .dashboard-card-hod {
   @apply bg-gradient-to-br from-teal-950/60 via-teal-900/50 to-emerald-950/60 border-teal-600/60 shadow-teal-800/40;
 }
@@ -376,6 +424,7 @@
 .dashboard-card-principal {
   @apply bg-gradient-to-br from-violet-50 via-violet-100 to-purple-100 border-violet-300 shadow-violet-200/50;
 }
+
 .dark .dashboard-card-principal {
   @apply bg-gradient-to-br from-violet-950/60 via-violet-900/50 to-purple-950/60 border-violet-600/60 shadow-violet-800/40;
 }
@@ -433,27 +482,38 @@
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
   }
+
   50% {
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.4);
   }
 }
 
 @keyframes button-bounce {
-  0%, 20%, 50%, 80%, 100% {
+
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
     transform: translateY(0);
   }
+
   40% {
     transform: translateY(-3px);
   }
+
   60% {
     transform: translateY(-1px);
   }
@@ -495,6 +555,7 @@
     transform: translateY(0px) scale(1);
     opacity: 0.7;
   }
+
   to {
     transform: translateY(-8px) scale(0.9);
     opacity: 1;

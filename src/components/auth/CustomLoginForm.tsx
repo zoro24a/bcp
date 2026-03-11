@@ -25,7 +25,11 @@ const formSchema = z.object({
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
 
-const CustomLoginForm = () => {
+interface CustomLoginFormProps {
+  onForgotPassword: () => void;
+}
+
+const CustomLoginForm = ({ onForgotPassword }: CustomLoginFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -139,7 +143,7 @@ const CustomLoginForm = () => {
             )}
           </span>
         </Button>
-        
+
         {/* Forgot Password Link */}
         <div className="text-center mt-4">
           <Button
@@ -148,10 +152,7 @@ const CustomLoginForm = () => {
             className="text-sm text-muted-foreground hover:text-primary transition-all duration-300
                        hover:scale-105 hover:underline p-0 h-auto font-medium
                        focus:ring-2 focus:ring-primary/30 focus:outline-none rounded"
-            onClick={() => {
-              // Add forgot password functionality here
-              showError("Forgot password functionality not implemented yet.");
-            }}
+            onClick={onForgotPassword}
           >
             Forgot your password?
           </Button>

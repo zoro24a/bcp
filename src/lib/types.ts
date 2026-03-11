@@ -102,6 +102,7 @@ export interface Profile {
   batches?: Batch; // Added for joined data
   created_at?: string;
   updated_at?: string;
+  tutor_assignments?: TutorAssignment[];
 }
 
 // Specific types for joined data or extended profiles if needed in UI

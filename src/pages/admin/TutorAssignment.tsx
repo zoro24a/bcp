@@ -23,7 +23,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Trash2, UserPlus } from "lucide-react";
+import { Trash2, UserPlus, PenTool } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
 import {
     fetchDepartments,
@@ -31,6 +31,7 @@ import {
     fetchProfiles,
     fetchTutorAssignments,
     createTutorAssignment,
+    updateTutorAssignment,
     deleteTutorAssignment,
 } from "@/data/appData";
 import { Department, Batch, Profile, TutorAssignment } from "@/lib/types";
@@ -43,22 +44,22 @@ const TutorAssignmentPage = () => {
     const [loading, setLoading] = useState(true);
 
     // Form State
-    const [selectedDeptId, setSelectedDeptId] = useState<string>("");
-    const [selectedBatchId, setSelectedBatchId] = useState<string>("");
-    const [selectedSemester, setSelectedSemester] = useState<string>("");
-    const [selectedTutorId, setSelectedTutorId] = useState<string>("");
+    const [selectedDeptId, setSelectedDeptId] = useState<string | undefined>(undefined);
+    const [selectedBatchId, setSelectedBatchId] = useState<string | undefined>(undefined);
+    const [selectedSemester, setSelectedSemester] = useState<string | undefined>(undefined);
+    const [selectedTutorId, setSelectedTutorId] = useState<string | undefined>(undefined);
+    const [editingAssignment, setEditingAssignment] = useState<TutorAssignment | null>(null);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [deptsData, batchesData, tutorsData, assignmentsData] = await Promise.all([
+            const [deptsData, tutorsData, assignmentsData] = await Promise.all([
                 fetchDepartments(),
-                fetchBatches(),
                 fetchProfiles("tutor"),
                 fetchTutorAssignments(),
             ]);
             setDepartments(deptsData);
-            setBatches(batchesData);
             setTutors(tutorsData);
             setAssignments(assignmentsData);
         } catch (error: any) {
@@ -72,9 +73,29 @@ const TutorAssignmentPage = () => {
         fetchData();
     }, []);
 
-    const filteredBatches = useMemo(() => {
-        return batches.filter((b) => b.department_id === selectedDeptId);
-    }, [batches, selectedDeptId]);
+    useEffect(() => {
+        const loadBatches = async () => {
+            if (selectedDeptId) {
+                const data = await fetchBatches(selectedDeptId);
+                setBatches(data);
+            } else {
+                setBatches([]);
+            }
+        };
+        loadBatches();
+    }, [selectedDeptId]);
+
+    // Use a Map to ensure unique batches based on their name and section combination
+    const uniqueBatches = useMemo(() => {
+        const map = new Map();
+        batches.forEach(b => {
+            const key = `${b.name}-${b.section || 'NoSection'}`;
+            if (!map.has(key)) {
+                map.set(key, b);
+            }
+        });
+        return Array.from(map.values());
+    }, [batches]);
 
     const availableTutors = useMemo(() => {
         return tutors.filter((t) => t.department_id === selectedDeptId);
@@ -92,7 +113,7 @@ const TutorAssignmentPage = () => {
         const academicYear = batch.name; // e.g. "2024-2028"
         const section = batch.section || "No Section";
 
-        const newAssignment = {
+        const assignmentPayload = {
             batch_id: selectedBatchId,
             section: section,
             semester: parseInt(selectedSemester),
@@ -100,16 +121,41 @@ const TutorAssignmentPage = () => {
             academic_year: academicYear,
         };
 
-        const result = await createTutorAssignment(newAssignment);
-        if (result) {
-            showSuccess("Tutor assigned successfully!");
-            fetchData();
-            // Reset form
-            setSelectedSemester("");
-            setSelectedTutorId("");
+        if (editingAssignment) {
+            const result = await updateTutorAssignment(editingAssignment.id, assignmentPayload);
+            if (result) {
+                showSuccess("Assignment updated successfully!");
+                setIsEditDialogOpen(false);
+                setEditingAssignment(null);
+                fetchData();
+                resetForm();
+            } else {
+                showError("Failed to update assignment.");
+            }
         } else {
-            showError("Failed to assign tutor. A duplicate assignment might exist.");
+            const result = await createTutorAssignment(assignmentPayload);
+            if (result) {
+                showSuccess("Tutor assigned successfully!");
+                fetchData();
+                resetForm();
+            } else {
+                showError("Failed to assign tutor. A duplicate assignment might exist.");
+            }
         }
+    };
+
+    const handleEdit = (assignment: TutorAssignment) => {
+        setEditingAssignment(assignment);
+        setSelectedDeptId(assignment.batch?.department_id || "");
+        setSelectedBatchId(assignment.batch_id);
+        setSelectedSemester(String(assignment.semester));
+        setSelectedTutorId(assignment.tutor_id);
+    };
+
+    const resetForm = () => {
+        setSelectedSemester(undefined);
+        setSelectedTutorId(undefined);
+        setEditingAssignment(null);
     };
 
     const handleDelete = async (id: string) => {
@@ -139,10 +185,10 @@ const TutorAssignmentPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <div className="space-y-2">
                             <Label>Department</Label>
-                            <Select value={selectedDeptId} onValueChange={(val) => {
+                            <Select value={selectedDeptId || ""} onValueChange={(val) => {
                                 setSelectedDeptId(val);
-                                setSelectedBatchId("");
-                                setSelectedTutorId("");
+                                setSelectedBatchId(undefined);
+                                setSelectedTutorId(undefined);
                             }}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select Dept" />
@@ -158,7 +204,7 @@ const TutorAssignmentPage = () => {
                         <div className="space-y-2">
                             <Label>Batch & Section</Label>
                             <Select
-                                value={selectedBatchId}
+                                value={selectedBatchId || ""}
                                 onValueChange={setSelectedBatchId}
                                 disabled={!selectedDeptId}
                             >
@@ -166,9 +212,9 @@ const TutorAssignmentPage = () => {
                                     <SelectValue placeholder="Select Batch" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {filteredBatches.map((b) => (
+                                    {uniqueBatches.map((b) => (
                                         <SelectItem key={b.id} value={b.id}>
-                                            {b.name} {b.section ? `- Section ${b.section}` : ""}
+                                            {b.name} - Section {b.section || "A"}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -177,7 +223,7 @@ const TutorAssignmentPage = () => {
 
                         <div className="space-y-2">
                             <Label>Semester</Label>
-                            <Select value={selectedSemester} onValueChange={setSelectedSemester}>
+                            <Select value={selectedSemester || ""} onValueChange={setSelectedSemester}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Semester" />
                                 </SelectTrigger>
@@ -192,7 +238,7 @@ const TutorAssignmentPage = () => {
                         <div className="space-y-2">
                             <Label>Tutor</Label>
                             <Select
-                                value={selectedTutorId}
+                                value={selectedTutorId || ""}
                                 onValueChange={setSelectedTutorId}
                                 disabled={!selectedDeptId}
                             >
@@ -209,11 +255,20 @@ const TutorAssignmentPage = () => {
                             </Select>
                         </div>
 
-                        <div className="flex items-end">
+                        <div className="flex items-end gap-2">
                             <Button onClick={handleAssign} className="w-full gap-2">
-                                <UserPlus className="h-4 w-4" />
-                                Assign
+                                {editingAssignment ? "Update Assignment" : (
+                                    <>
+                                        <UserPlus className="h-4 w-4" />
+                                        Assign
+                                    </>
+                                )}
                             </Button>
+                            {editingAssignment && (
+                                <Button variant="outline" onClick={resetForm}>
+                                    Cancel
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </CardContent>
@@ -249,7 +304,15 @@ const TutorAssignmentPage = () => {
                                             {a.tutor ? `${a.tutor.first_name} ${a.tutor.last_name || ''}`.trim() : "N/A"}
                                         </TableCell>
                                         <TableCell>{a.academic_year}</TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right flex justify-end gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleEdit(a)}
+                                                className="text-primary hover:text-primary/90"
+                                            >
+                                                <PenTool className="h-4 w-4" />
+                                            </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"

@@ -76,7 +76,6 @@ const StudentManagement = () => {
   const [allStudents, setAllStudents] = useState<StudentDetails[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [tutors, setTutors] = useState<Profile[]>([]);
   const [hods, setHods] = useState<Profile[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedBatch, setSelectedBatch] = useState("all");
@@ -95,7 +94,6 @@ const StudentManagement = () => {
     department_id: "",
     batch_id: "",
     gender: "Male",
-    tutor_id: undefined,
     hod_id: undefined,
   });
   const [newStudentPassword, setNewStudentPassword] = useState("");
@@ -119,20 +117,17 @@ const StudentManagement = () => {
       const fetchedStudents = await fetchAllStudentsWithDetails();
       const fetchedDepartments = await fetchDepartments();
       const fetchedBatches = await fetchBatches();
-      const fetchedTutors = await fetchProfiles('tutor');
       const fetchedHods = await fetchProfiles('hod');
 
       setAllStudents(fetchedStudents);
       setDepartments(fetchedDepartments);
       setBatches(fetchedBatches);
-      setTutors(fetchedTutors);
       setHods(fetchedHods);
     } catch (error: any) {
       showError(error.message);
       setAllStudents([]);
       setDepartments([]);
       setBatches([]);
-      setTutors([]);
       setHods([]);
     } finally {
       setLoading(false);
@@ -146,12 +141,41 @@ const StudentManagement = () => {
   const filteredStudents = useMemo(() => {
     return allStudents.filter((student) => {
       const departmentMatch =
-        selectedDepartment === "all" || student.department_name === selectedDepartment;
+        selectedDepartment === "all" || student.department_id === selectedDepartment;
       const batchMatch =
         selectedBatch === "all" || student.batch_name === selectedBatch;
       return departmentMatch && batchMatch;
     });
   }, [allStudents, selectedDepartment, selectedBatch]);
+
+  const uniqueFilteredBatches = useMemo(() => {
+    let filtered = batches;
+
+    if (selectedDepartment !== "all") {
+      filtered = batches.filter(
+        (batch) => batch.department_id === selectedDepartment
+      );
+    }
+
+    const unique = Array.from(
+      new Map(
+        filtered.map((b) => [`${b.name}-${b.section || ""}`, b])
+      ).values()
+    );
+
+    return unique;
+  }, [batches, selectedDepartment]);
+
+  useEffect(() => {
+    if (selectedBatch !== "all") {
+      const isStillAvailable = uniqueFilteredBatches.some(
+        (b) => `${b.name} ${b.section || ""}`.trim() === selectedBatch
+      );
+      if (!isStillAvailable) {
+        setSelectedBatch("all");
+      }
+    }
+  }, [uniqueFilteredBatches, selectedBatch]);
 
   const findMatchingBatch = () => {
     if (!newStudentData.department_id || !selectedStartYear || !selectedEndYear) {
@@ -169,9 +193,6 @@ const StudentManagement = () => {
     ) || null;
   };
 
-  const filteredTutorsByDepartment = useMemo(() => {
-    return tutors.filter(tutor => tutor.department_id === newStudentData.department_id);
-  }, [tutors, newStudentData.department_id]);
 
   const filteredHodsByDepartment = useMemo(() => {
     return hods.filter(hod => hod.department_id === newStudentData.department_id);
@@ -387,7 +408,6 @@ const StudentManagement = () => {
       const createdBatch = await createBatch({
         name: batchName,
         section: sectionName,
-        tutor_id: newStudentData.tutor_id === "unassigned" ? undefined : newStudentData.tutor_id,
         total_sections: 1,
         student_count: 1,
         status: "Active",
@@ -424,7 +444,6 @@ const StudentManagement = () => {
           register_number: newStudentData.register_number!,
           parent_name: newStudentData.parent_name,
           batch_id: batchIdToUse,
-          tutor_id: newStudentData.tutor_id === "unassigned" ? undefined : newStudentData.tutor_id,
           hod_id: newStudentData.hod_id === "unassigned" ? undefined : newStudentData.hod_id,
         }
       );
@@ -458,7 +477,6 @@ const StudentManagement = () => {
           register_number: newStudentData.register_number!,
           parent_name: newStudentData.parent_name,
           batch_id: batchIdToUse,
-          tutor_id: newStudentData.tutor_id === "unassigned" ? undefined : newStudentData.tutor_id,
           hod_id: newStudentData.hod_id === "unassigned" ? undefined : newStudentData.hod_id,
         },
         newStudentPassword
@@ -487,7 +505,6 @@ const StudentManagement = () => {
       department_id: student.department_id,
       batch_id: student.batch_id,
       gender: student.gender || "Male",
-      tutor_id: student.tutor_id,
       hod_id: student.hod_id,
     });
 
@@ -526,7 +543,6 @@ const StudentManagement = () => {
       department_id: "",
       batch_id: "",
       gender: "Male",
-      tutor_id: undefined,
       hod_id: undefined,
     });
     setNewStudentPassword("");
@@ -547,7 +563,7 @@ const StudentManagement = () => {
             <SelectContent>
               <SelectItem value="all">All Departments</SelectItem>
               {departments.map((dept) => (
-                <SelectItem key={dept.id} value={dept.name}>
+                <SelectItem key={dept.id} value={dept.id}>
                   {dept.name}
                 </SelectItem>
               ))}
@@ -559,7 +575,7 @@ const StudentManagement = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Batches</SelectItem>
-              {batches.map((batch) => (
+              {uniqueFilteredBatches.map((batch) => (
                 <SelectItem key={batch.id} value={`${batch.name} ${batch.section || ''}`.trim()}>
                   {`${batch.name} ${batch.section || ''}`.trim()}
                 </SelectItem>
@@ -704,7 +720,6 @@ const StudentManagement = () => {
                       setNewStudentData({
                         ...newStudentData,
                         department_id: value,
-                        tutor_id: undefined,
                         hod_id: matchingHod?.id
                       });
                     }}
@@ -724,41 +739,20 @@ const StudentManagement = () => {
                 </div>
 
                 {newStudentData.department_id && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="tutor_id">Tutor</Label>
-                      <Select
-                        value={newStudentData.tutor_id || "unassigned"}
-                        onValueChange={(value) => setNewStudentData({ ...newStudentData, tutor_id: value })}
-                      >
-                        <SelectTrigger id="tutor_id">
-                          <SelectValue placeholder="Select Tutor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {filteredTutorsByDepartment.map((tutor) => (
-                            <SelectItem key={tutor.id} value={tutor.id}>
-                              {`${tutor.first_name} ${tutor.last_name || ''}`.trim()}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="hod_name">HOD</Label>
-                      {(() => {
-                        const hod = hods.find(h => h.id === newStudentData.hod_id);
-                        const hodName = hod ? `${hod.first_name} ${hod.last_name || ''}`.trim() : "Not Assigned";
-                        return (
-                          <Input
-                            id="hod_name"
-                            value={hodName}
-                            readOnly
-                            className="bg-muted cursor-not-allowed"
-                          />
-                        );
-                      })()}
-                    </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="hod_name">HOD</Label>
+                    {(() => {
+                      const hod = hods.find(h => h.id === newStudentData.hod_id);
+                      const hodName = hod ? `${hod.first_name} ${hod.last_name || ''}`.trim() : "Not Assigned";
+                      return (
+                        <Input
+                          id="hod_name"
+                          value={hodName}
+                          readOnly
+                          className="bg-muted cursor-not-allowed"
+                        />
+                      );
+                    })()}
                   </div>
                 )}
 
